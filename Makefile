@@ -1,4 +1,4 @@
-.PHONY: help install install-hooks check fix lint format typecheck test \
+.PHONY: help env install install-hooks check fix lint format typecheck test \
         frontend-install frontend-check frontend-fix frontend-test frontend-build \
         audit docker-build up down pre-commit ci clean
 
@@ -10,7 +10,8 @@ help:
 	@echo "Project Commands"
 	@echo ""
 	@echo "Setup:"
-	@echo "  make install          - Install backend deps (uv) and frontend deps (npm ci)"
+	@echo "  make env              - Create .env from .env.example with random secrets (no-op if present)"
+	@echo "  make install          - make env, then backend deps (uv) and frontend deps (npm ci)"
 	@echo "  make install-hooks    - Install pre-commit hooks"
 	@echo "  make up / make down   - Start / stop the local stack (docker compose)"
 	@echo ""
@@ -25,7 +26,21 @@ help:
 	@echo "  make pre-commit       - Run all pre-commit hooks"
 	@echo "  make ci               - Everything CI runs, locally"
 
-install: frontend-install
+# .env.example lists every variable; secrets are left empty there. This target
+# copies it and fills each empty value with a random one, so a clean checkout
+# runs with one command and never with a shared default password. An empty
+# .env counts as missing. `sed -i.bak` works on both BSD and GNU sed.
+env:
+	@test -s .env || { \
+	  cp .env.example .env; \
+	  for key in $$(grep -E '^[A-Z_]+=$$' .env.example | cut -d= -f1); do \
+	    sed -i.bak "s/^$$key=$$/$$key=$$(openssl rand -hex 24)/" .env; \
+	  done; \
+	  rm -f .env.bak; \
+	  echo "Created .env from .env.example with generated secrets"; \
+	}
+
+install: env frontend-install
 	uv sync --all-extras
 
 install-hooks:
@@ -89,8 +104,7 @@ endif
 docker-build:
 	docker compose build
 
-up:
-	@test -f .env || cp .env.example .env
+up: env
 	docker compose up --build -d
 
 down:
