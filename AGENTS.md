@@ -7,7 +7,8 @@ this file and adds Claude Code specifics; other agents read this file directly.
   other agent reads them explicitly. `_LEVELS.md` defines the MUST / MUST-UNLESS /
   PREFER tags used in each module.
 - Skills: `.claude/skills/` (also reachable as `.agents/skills`, a symlink).
-- Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Session exports: `agent-sessions/`.
+- Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Implementation plan
+  with commit sequence: `docs/plan.md`. Session exports: `agent-sessions/`.
 
 ## Project
 Flash-sale service: a shop lists a batch of goods at a special price for a
