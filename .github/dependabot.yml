@@ -1,0 +1,42 @@
+# Dependabot keeps the pins fresh; it is not the vulnerability gate — that is
+# the `audit` job in ci.yml (`uv audit` + `npm audit`), which blocks merges.
+# Dependabot updates the SHA pins of actions (and the version comment next to
+# them), image digests in Dockerfiles, and the two lockfiles.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - /
+      - /frontend
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+    # Don't propose a version the day it ships; CI would still catch a bad one,
+    # but a week of soak is cheap. Match `exclude-newer` in pyproject if set.
+    cooldown:
+      default-days: 7
+    groups:
+      python-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]

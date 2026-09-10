@@ -1,0 +1,28 @@
+# AI tool ignore file — files and directories AI coding assistants should not read.
+# This is the project-template copy; adjust for your project.
+
+# Dependencies and virtual environments
+.venv/
+venv/
+env/
+node_modules/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Secrets and local config — never let an AI read these
+.env
+.env.*
+*.local.json

@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege by default (security audit: a job with write permissions that
+# installs unpinned packages is a critical supply-chain finding). Raise per job
+# only when a job genuinely needs it.
+permissions:
+  contents: read
+
+# Actions pinned by commit SHA, not moving major tags — the tag can be re-pointed,
+# the SHA cannot. The trailing comment carries the human-readable version.
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          # Same uv as the Dockerfile; without `version` the action installs
+          # whatever is latest that day (dependency audit: unpinned CI tool).
+          version: "0.12.11"
+          enable-cache: true
+      # --locked: fail if uv.lock disagrees with pyproject instead of re-resolving.
+      - run: uv sync --locked --all-extras
+      - name: Lint + format + types + tests
+        run: make check
+    # Uncomment when tests need a real database (testing.md: never mock the DB
+    # in integration tests). DATABASE_URL then points at this service.
+    # services:
+    #   db:
+    #     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    #     env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
+    #     ports: ["5432:5432"]
+    #     options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 3s --health-retries 10
+
+  frontend:
+    runs-on: ubuntu-24.04
+    if: ${{ hashFiles('frontend/package.json') != '' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      # --ignore-scripts: no lifecycle scripts from third-party packages run in CI.
+      - run: npm ci --ignore-scripts
+      - name: Lint + format + types + tests (with coverage threshold)
+        run: npm run lint && npm run format:check && npm run typecheck && npm run test:coverage
+      - run: npm run build
+
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.12.11"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Known-vulnerability scan (Python)
+        # uv audit reads uv.lock and queries OSV; non-zero exit on any finding.
+        run: uv audit --locked --no-dev --preview-features audit-command
+      - name: Known-vulnerability scan (npm)
+        if: ${{ hashFiles('frontend/package-lock.json') != '' }}
+        run: cd frontend && npm audit --audit-level=high
+
+  docker:
+    runs-on: ubuntu-24.04
+    if: ${{ hashFiles('docker-compose.yml') != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+      # Build only — proves the images still build; no registry push.
+      - run: cp .env.example .env && docker compose build

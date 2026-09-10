@@ -1,0 +1,45 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+
+  # Secrets never reach a commit. Complements .gitignore, which only covers
+  # whole files, not a key pasted into source.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.6
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        pass_filenames: false
+        args: [.]
+      # Frontend: same gate as the backend, scoped to frontend/ so Python-only
+      # commits don't pay for it. Requires `npm ci` to have run once.
+      - id: frontend-lint
+        name: frontend lint + format
+        entry: bash -c 'cd frontend && npm run lint && npm run format:check'
+        language: system
+        files: ^frontend/
+        exclude: ^frontend/package-lock\.json$
+        pass_filenames: false
