@@ -41,6 +41,7 @@
 - `28c24c8` docs: update the session log and export
 - `1ced3ac` build: add pre-commit, rename project to lastunit, add pydantic-settings
 - `091ede9` build: make pre-commit pass on all files
+- `08c3f2f` docs: update the session log and export after pre-commit setup
 
 ## Дальше
 План уходит на независимый просмотр другой моделью до начала реализации.
