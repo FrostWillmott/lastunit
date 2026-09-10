@@ -1,12 +1,15 @@
 # Local stack: `make up` brings everything up, `make down` tears it down.
-# Ports and credentials come from .env (copy .env.example) — one source per value.
+# Credentials come from .env, created by `make env` — one source per value.
+# Secrets have no default here on purpose: `${VAR:?}` makes compose refuse to
+# start without them instead of booting with a password everyone knows.
+# Defaults are allowed only for non-secret values (user and database name).
 services:
   db:
     # Pinned by digest; refresh via the curl in Dockerfile's header comment.
     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — run `make env` to create .env}
       POSTGRES_DB: ${POSTGRES_DB:-app}
     ports:
       - "5432:5432"
@@ -23,7 +26,7 @@ services:
     env_file: .env
     environment:
       # Inside the compose network the DB host is the service name, not localhost.
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@db:5432/${POSTGRES_DB:-app}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — run `make env` to create .env}@db:5432/${POSTGRES_DB:-app}
     ports:
       - "8000:8000"
     depends_on:
