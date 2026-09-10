@@ -7,11 +7,11 @@ this file and adds Claude Code specifics; other agents read this file directly.
   other agent reads them explicitly. `_LEVELS.md` defines the MUST / MUST-UNLESS /
   PREFER tags used in each module.
 - Skills: `.claude/skills/` (also reachable as `.agents/skills`, a symlink).
-- Decision log: `DECISIONS.md`. Spec: `ТЗ.md`. Session exports: `agent-sessions/`.
+- Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Session exports: `agent-sessions/`.
 
 ## Project
 Flash-sale service: a shop lists a batch of goods at a special price for a
-short window and there are more buyers than stock. The spec is `ТЗ.md` (Russian);
+short window and there are more buyers than stock. The spec is `docs/acceptance.md` (Russian);
 its "Ожидаемое поведение" bullets are the acceptance criteria. Backend: FastAPI
 on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
@@ -69,7 +69,7 @@ Mount every backend route under `/api`.
 | `.env.example` or the Settings class | `make test` (the env-contract test) | — |
 
 ## Spec deliverables that shape every session
-From `ТЗ.md`, not derivable from code:
+From `docs/acceptance.md`, not derivable from code:
 - Every expected-behaviour bullet maps to one named test and one row in the
   README "State" table (bullet → test → pass/fail). A bullet without a test is
   listed as "not proven", never dropped.
