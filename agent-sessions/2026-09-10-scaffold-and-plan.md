@@ -26,6 +26,11 @@
   `make install` и `make up`. Проверено в копии: compose без `.env` падает с
   именем переменной; `make env` создаёт `.env` с 48-hex паролем, повторный
   вызов ничего не делает, пустой `.env` считается отсутствующим.
+- 11:35–11:50 — установлены pre-commit хуки (`make install-hooks`). Первый
+  прогон по всем файлам вскрыл: tsconfig — это JSONC (исключён из check-json),
+  mypy не был установлен (добавлен в dev-группу со strict), фронтенд-линт
+  падал на Node 16 из PATH (добавлен `frontend/.nvmrc` = 24, как в CI).
+  После правок все 13 хуков зелёные.
 
 ## Коммиты сессии
 - `efdaea8` Scaffold flash-sale project: tooling, CI, rules, agent guidance
@@ -33,7 +38,12 @@
 - `ee3a8ac` docs: add the implementation plan
 - `d723211` docs: save the first agent session export and log
 - `8044d03` build: no default secrets in compose, make env generates .env
+- `28c24c8` docs: update the session log and export
+- `1ced3ac` build: add pre-commit, rename project to lastunit, add pydantic-settings
+- `091ede9` build: make pre-commit pass on all files
 
 ## Дальше
 План уходит на независимый просмотр другой моделью до начала реализации.
-Затем этап 0, коммит 1: пакет `app/`, Settings, `/api/health`, dev-зависимости.
+Затем этап 0, коммит 1: пакет `app/`, Settings, `/api/health`, pytest и
+остальные dev-зависимости (mypy и pre-commit уже есть). Локально нужен
+Node 24: `nvm use` в `frontend/` или `nvm alias default 24`.
