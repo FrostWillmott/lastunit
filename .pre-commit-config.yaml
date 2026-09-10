@@ -2,13 +2,18 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      # agent-sessions/ holds verbatim session exports: large by nature and
+      # never rewritten by a formatter. Secret scanning still covers them.
       - id: trailing-whitespace
+        exclude: ^agent-sessions/
       - id: end-of-file-fixer
+        exclude: ^agent-sessions/
       - id: check-yaml
       - id: check-toml
       - id: check-json
       - id: check-merge-conflict
       - id: check-added-large-files
+        exclude: ^agent-sessions/
       - id: detect-private-key
 
   # Secrets never reach a commit. Complements .gitignore, which only covers
