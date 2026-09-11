@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-11 — Sale times are absolute, in the shop's IANA zone
+The shop creates a sale with a wall-clock start/end plus a `timezone` (IANA) column
+on the sale; the backend parses the local time with `zoneinfo.ZoneInfo`, stores
+`timestamptz` UTC, and renders the times back in that zone. This satisfies the
+`transactional-web` [MUST] that a zone be explicit, without forcing a zone on
+buyers — buyers only ever see a `server_now`-offset countdown.
+
 ## 2026-09-10 — SSE instead of WebSocket for live updates
 Updates flow one way (server → browser), so `GET /api/events` over SSE with VueUse
 `useEventSource` gives reconnect for free and needs no socket protocol of our own.

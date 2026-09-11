@@ -49,6 +49,11 @@
   Механическая проверка: `tests/unit/test_no_local_time.py` grep'ом ищет
   `datetime.now`, `func.now`, `now()` в `app/` и падает на любом вхождении
   (Ruff DTZ для этого не годится: его нет в `select`, и `datetime.now(UTC)` он пропускает).
+- **Время распродажи абсолютное, в IANA-зоне магазина.** `sales.timezone`
+  (имя IANA) — колонка; `POST /api/sales` берёт `timezone` + локальные
+  `starts_at`/`ends_at`, нормализует в UTC через `ZoneInfo` и хранит `timestamptz`.
+  Покупатели видят только отсчёт от `server_now`, зона им не нужна (колонки на
+  `users` нет). `ZoneInfo` в grep-проверку источника времени не попадает.
 - **Остатки**: счётчик `available` на распродаже, атомарный
   `UPDATE sales SET available = available - 1 WHERE id=? AND available > 0 AND starts_at <= :now AND :now < ends_at RETURNING`
   + `CHECK (available >= 0)`. «Продано» и «в корзинах» — производные счётчики по статусам.
@@ -116,7 +121,7 @@
 3. `feat(db): async engine, session dependency, alembic baseline`
    - `app/db.py`, `alembic/` с async env; `tests/integration/conftest.py`:
      реальная БД из compose, **TRUNCATE всех таблиц перед каждым тестом, настоящие
-     commit** — тесты на гонки (3, 5, 6, 13) и SSE после commit требуют отдельных
+     commit** — тесты на гонки (3, 4, 5, 6) и SSE после commit требуют отдельных
      соединений, rollback-на-тест их ломает. `get_db` в тестах отдаёт обычные
      сессии из пула.
    - Раскомментировать `services: db` в ci.yml и добавить `env: DATABASE_URL`
@@ -128,7 +133,7 @@
      чтобы `make up` с чистого `.env` давал рабочее приложение.
 4. `feat(db): domain tables, enums and constraints`
    - `users`, `sessions(token_hash UNIQUE, user_id, expires_at)`,
-     `sales(title, price_minor, quantity, available, starts_at, ends_at, status)`
+     `sales(title, price_minor, quantity, available, starts_at, ends_at, timezone, status)`
      с `CHECK (available >= 0)`, `CHECK (starts_at < ends_at)`, индексом `(status, ends_at)`,
      `reservations(sale_id, user_id, status, expires_at, released_at)` с индексом
      `(status, expires_at)` и partial UNIQUE `(sale_id, user_id) WHERE status IN ('held','paying')` (У6),
@@ -155,9 +160,12 @@
 ### Этап 3 — распродажа и удержание (3 коммита)
 7. `feat(sales): create/list sales with server time`
    - `GET /api/sales`, `GET /api/sales/{id}` (+`server_now`, `phase`), `POST /api/sales`
-     для роли shop (`available = quantity` при создании). Unit-тест чистой
-     функции `phase(starts_at, ends_at, now)`; тест 1 живёт в коммите 8, потому что
-     запрет до старта — условие в SQL, а не в Python.
+     для роли shop (`available = quantity` при создании). `POST` принимает
+     `timezone` (IANA) и локальные `starts_at`/`ends_at`; бэкенд нормализует их
+     в UTC через `zoneinfo.ZoneInfo` и хранит `timestamptz` + `timezone` для показа.
+     Unit-тесты чистой функции `phase(starts_at, ends_at, now)` и перевода
+     локального времени в UTC, включая границу DST; тест 1 живёт в коммите 8,
+     потому что запрет до старта — условие в SQL, а не в Python.
 8. `feat(cart): reserve one unit with 10-minute hold`
    - `POST /api/sales/{id}/reserve` → атомарный UPDATE; 409 «закончилось» /
      «ещё не началось» / «уже в корзине» (У6). Тест 3 (две корутины, два
@@ -263,7 +271,8 @@
       с подсказкой тестовых номеров из коммита 10. Тест store `cart`.
 23. `feat(frontend): buyer cabinet` — заказы и статусы, обновление по SSE. Тест store `orders`.
 24. `feat(frontend): shop dashboard` — остатки, продано, в корзинах, выручка;
-    создание распродажи; список зависших попыток с кнопкой «проверить статус»
+    создание распродажи (пикер даты-времени + выбор IANA-зоны); список зависших
+    попыток с кнопкой «проверить статус»
     (коммит 17) и ссылкой на resolve заглушки. Тест store `shop`.
 25. `test(frontend): store applies two realtime events` — половина «двух вкладок».
 
