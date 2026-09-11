@@ -33,6 +33,13 @@ services:
       db:
         condition: service_healthy
 
+  paystub:
+    build:
+      context: .
+      dockerfile: paystub/Dockerfile
+    ports:
+      - "8001:8001"
+
   frontend:
     build: ./frontend
     ports:

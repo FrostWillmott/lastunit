@@ -47,7 +47,7 @@ ignore = [
 ]
 
 [lint.isort]
-known-first-party = ["app"]   # TODO: rename to this project's backend package
+known-first-party = ["app", "paystub"]
 combine-as-imports = true
 
 [lint.per-file-ignores]
