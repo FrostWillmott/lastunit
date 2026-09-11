@@ -12,9 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.clock import Clock
 from app.config import Settings
 from app.db import get_db
-from app.deps import current_user, get_clock, get_paystub, get_settings
+from app.deps import current_user, get_broadcaster, get_clock, get_paystub, get_settings
 from app.models.user import User
 from app.paystub_client import PaystubClient
+from app.realtime import Broadcaster
 from app.services import payments as payments_service
 
 router = APIRouter(tags=["payments"])
@@ -29,7 +30,7 @@ class PayResponse(BaseModel):
 
 
 @router.post("/orders/{order_id}/pay", response_model=PayResponse)
-async def pay(
+async def pay(  # noqa: PLR0913  (FastAPI endpoint: path + body + 6 injected dependencies)
     order_id: int,
     body: PayRequest,
     db: AsyncSession = Depends(get_db),
@@ -37,6 +38,7 @@ async def pay(
     settings: Settings = Depends(get_settings),
     user: User = Depends(current_user),
     paystub: PaystubClient = Depends(get_paystub),
+    broadcaster: Broadcaster = Depends(get_broadcaster),
 ) -> PayResponse:
     now = await clock.now()
     try:
@@ -65,7 +67,7 @@ async def pay(
         outcome = "pending"
     if outcome in ("approved", "declined"):
         await payments_service.apply_payment_result(
-            db, provider_ref, outcome, await clock.now()
+            db, provider_ref, outcome, await clock.now(), broadcaster
         )
     return PayResponse(status=outcome)
 
@@ -76,6 +78,7 @@ async def webhook(
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
     settings: Settings = Depends(get_settings),
+    broadcaster: Broadcaster = Depends(get_broadcaster),
 ) -> dict[str, bool]:
     body = await request.body()
     signature = request.headers.get("X-Webhook-Signature", "")
@@ -86,6 +89,6 @@ async def webhook(
         raise HTTPException(status_code=401, detail="invalid signature")
     payload = json.loads(body)
     await payments_service.apply_payment_result(
-        db, payload["reference"], payload["status"], await clock.now()
+        db, payload["reference"], payload["status"], await clock.now(), broadcaster
     )
     return {"ok": True}

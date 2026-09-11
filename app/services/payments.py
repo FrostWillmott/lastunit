@@ -12,6 +12,7 @@ from app.models.order import Order, Payment
 from app.models.reservation import Reservation
 from app.models.sale import Sale
 from app.models.user import User
+from app.realtime import Broadcaster, NoopBroadcaster
 from app.services import notifications
 
 
@@ -107,8 +108,10 @@ async def apply_payment_result(
     provider_ref: str,
     outcome: str,
     now: datetime,
+    broadcaster: Broadcaster | None = None,
 ) -> None:
     """Apply an approved/declined result; idempotent via the pending guard."""
+    broadcaster = broadcaster or NoopBroadcaster()
     result = await db.execute(
         update(Payment)
         .where(
@@ -128,6 +131,7 @@ async def apply_payment_result(
     if order is None:
         return
 
+    new_order_status: str
     if outcome == PaymentStatus.APPROVED.value:
         await db.execute(
             update(Order)
@@ -149,6 +153,7 @@ async def apply_payment_result(
         await notifications.enqueue_order_paid(
             db, order_id, buyer.email if buyer else "", order.amount_minor
         )
+        new_order_status = OrderStatus.PAID.value
     else:  # declined — return to the cart (or clear if the sale already ended).
         sale = (
             await db.execute(select(Sale).where(Sale.id == order.sale_id))
@@ -177,4 +182,10 @@ async def apply_payment_result(
                 )
                 .values(status=OrderStatus.CANCELLED.value)
             )
+            new_order_status = OrderStatus.CANCELLED.value
+        else:
+            new_order_status = OrderStatus.PENDING.value
     await db.commit()
+    await broadcaster.publish(
+        "order_status", {"order_id": order_id, "status": new_order_status}
+    )

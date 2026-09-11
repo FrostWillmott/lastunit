@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import Clock
 from app.db import get_db
-from app.deps import get_clock, get_paystub, require_shop
+from app.deps import get_broadcaster, get_clock, get_paystub, require_shop
 from app.paystub_client import PaystubClient
+from app.realtime import Broadcaster
 from app.services import payments as payments_service, shop as shop_service
 
 router = APIRouter(prefix="/shop", tags=["shop"])
@@ -70,6 +71,7 @@ async def check_payment(
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
     paystub: PaystubClient = Depends(get_paystub),
+    broadcaster: Broadcaster = Depends(get_broadcaster),
 ) -> dict[str, str]:
     try:
         status = await paystub.get_status(reference)
@@ -79,6 +81,6 @@ async def check_payment(
         ) from None
     if status in ("approved", "declined"):
         await payments_service.apply_payment_result(
-            db, reference, status, await clock.now()
+            db, reference, status, await clock.now(), broadcaster
         )
     return {"status": status}

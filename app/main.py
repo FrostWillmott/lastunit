@@ -12,8 +12,8 @@ from app.clock import Clock, PostgresClock
 from app.config import Settings
 from app.db import SessionFactory
 from app.paystub_client import HttpPaystubClient, PaystubClient
-from app.realtime import Broadcaster, NoopBroadcaster
-from app.routers import auth, cart, health, orders, payments, sales, shop
+from app.realtime import Broadcaster, InProcessBroadcaster
+from app.routers import auth, cart, events, health, orders, payments, sales, shop
 
 
 def create_app(
@@ -26,7 +26,7 @@ def create_app(
     """Build the app with its settings, clock and broadcaster injected for tests."""
     settings = settings or Settings()
     clock = clock or PostgresClock(SessionFactory)
-    broadcaster = broadcaster or NoopBroadcaster()
+    broadcaster = broadcaster or InProcessBroadcaster()
     paystub_client = paystub_client or HttpPaystubClient(settings.paystub_url)
     # App loggers (``app.*``) follow LOG_LEVEL; the process entry (uvicorn) owns
     # the root handlers, so set the app logger instead of reconfiguring root.
@@ -35,7 +35,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         task = asyncio.create_task(
-            scheduler.loop(clock, SessionFactory, scheduler_interval)
+            scheduler.loop(clock, SessionFactory, broadcaster, scheduler_interval)
         )
         yield
         task.cancel()
@@ -63,6 +63,7 @@ def create_app(
     app.include_router(orders.router, prefix="/api")
     app.include_router(payments.router, prefix="/api")
     app.include_router(shop.router, prefix="/api")
+    app.include_router(events.router, prefix="/api")
     return app
 
 
