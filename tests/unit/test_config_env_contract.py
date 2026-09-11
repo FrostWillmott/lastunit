@@ -12,6 +12,9 @@ ROOT = Path(__file__).resolve().parents[2]
 NON_SETTINGS_KEYS = frozenset(
     {"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB", "VITE_API_URL"}
 )
+# Settings fields that compose derives from POSTGRES_* (and CI sets directly)
+# rather than reading from .env, so they are intentionally absent from the file.
+COMPOSE_DERIVED_KEYS = frozenset({"DATABASE_URL"})
 
 
 def _documented_keys() -> set[str]:
@@ -30,5 +33,5 @@ def test_env_example_matches_settings() -> None:
     extra = documented - NON_SETTINGS_KEYS - declared
     assert not extra, f".env.example keys without a Settings field: {sorted(extra)}"
 
-    missing = declared - documented
+    missing = declared - COMPOSE_DERIVED_KEYS - documented
     assert not missing, f"Settings fields missing from .env.example: {sorted(missing)}"

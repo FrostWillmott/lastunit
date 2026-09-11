@@ -49,11 +49,14 @@ generates the secrets, and `docker compose` refuses to start without them.
 ## Testing
 
 ```bash
-make check      # backend lint + format + typecheck + tests, then frontend checks
+make check             # backend lint + format + typecheck + tests, then frontend checks
+make test-unit         # unit tests only, no database
+make test-integration  # integration tests against a real Postgres
 ```
 
-Backend tests live in `tests/unit/` (no I/O); integration tests against the real
-database arrive in `docs/plan.md` stage 1 and will need `docker compose up -d db`.
+`make check` and `make test` need a running database first: `docker compose up -d db`.
+Unit tests (`tests/unit/`) need no I/O; integration tests (`tests/integration/`)
+hit the real Postgres.
 
 ## State
 

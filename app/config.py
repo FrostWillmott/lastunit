@@ -15,3 +15,7 @@ class Settings(BaseSettings):
 
     app_env: Literal["dev", "prod"] = "dev"
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
+    # Compose derives the real value from POSTGRES_* and CI sets it directly;
+    # this default is only the fallback for running outside compose (local
+    # pytest), and matches the CI db service's app:app convention.
+    database_url: str = "postgresql+asyncpg://app:app@localhost:5432/app"
