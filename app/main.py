@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from app.clock import Clock, PostgresClock
 from app.config import Settings
 from app.db import SessionFactory
-from app.routers import auth, health
+from app.routers import auth, health, sales
 
 
 def create_app(
@@ -32,6 +32,7 @@ def create_app(
     app.state.clock = clock
     app.include_router(health.router, prefix="/api")
     app.include_router(auth.router, prefix="/api")
+    app.include_router(sales.router, prefix="/api")
     return app
 
 
