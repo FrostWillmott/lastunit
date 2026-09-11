@@ -1,31 +1,42 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-import { fetchHealth, type Health } from './api'
+import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { useAuthStore } from './stores/auth'
 
-const health = ref<Health | null>(null)
-const error = ref<string | null>(null)
+const auth = useAuthStore()
+const router = useRouter()
 
-onMounted(async () => {
-  try {
-    health.value = await fetchHealth()
-  } catch (e: unknown) {
-    error.value = e instanceof Error ? e.message : String(e)
-  }
-})
+async function logout() {
+  await auth.logout()
+  await router.push({ name: 'login' })
+}
 </script>
 
 <template>
-  <main>
-    <h1>App</h1>
-    <p v-if="error" role="alert">Backend unavailable: {{ error }}</p>
-    <p v-if="health" data-testid="health">Backend status: {{ health.status }}</p>
-  </main>
+  <header class="bar">
+    <RouterLink to="/" class="brand">lastunit</RouterLink>
+    <span v-if="auth.isAuthenticated" class="who">
+      {{ auth.user?.email }}
+      <button type="button" @click="logout">Log out</button>
+    </span>
+  </header>
+  <RouterView />
 </template>
 
 <style scoped>
-main {
-  max-width: 40rem;
-  margin: 2rem auto;
-  padding: 0 1rem;
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border, #0002);
+}
+.brand {
+  font-weight: 600;
+  text-decoration: none;
+}
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 </style>

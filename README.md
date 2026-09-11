@@ -93,6 +93,6 @@ test. Rows are updated as each stage lands.
 
 ## Next steps
 
-Follow `docs/plan.md` — stage 4 is orders and the payment stub. Planned but not
-in scope yet: Postgres `LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment
-timeout, automatic reconciliation with the payment stub, and pagination.
+Follow `docs/plan.md` — stage 7 is the frontend. Planned but not in scope yet:
+Postgres `LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment timeout,
+automatic reconciliation with the payment stub, and pagination.
