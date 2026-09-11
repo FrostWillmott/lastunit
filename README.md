@@ -13,7 +13,7 @@ the full per-session tool/model record lives in `agent-sessions/`.
 
 ## Stack
 
-- Backend: FastAPI (Python 3.12, uv), PostgreSQL 17 (async SQLAlchemy lands in stage 1).
+- Backend: FastAPI (Python 3.12, uv), async SQLAlchemy + PostgreSQL 17.
 - Frontend: Vue 3 + TypeScript (Vite).
 - Payment and email are stubs by design.
 
@@ -88,7 +88,7 @@ test. As of this scaffold no product behaviour is implemented, so every row is
 
 ## Next steps
 
-Follow `docs/plan.md` — stage 1 is the database schema, async session and
-migrations. Planned but not in scope yet: Postgres `LISTEN/NOTIFY` for
-multi-worker fan-out, a hung-payment timeout, automatic reconciliation with the
-payment stub, and pagination.
+Follow `docs/plan.md` — stage 2 is auth (register/login/logout, server-side
+sessions, then the shop seed). Planned but not in scope yet: Postgres
+`LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment timeout, automatic
+reconciliation with the payment stub, and pagination.

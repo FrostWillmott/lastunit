@@ -1,8 +1,8 @@
 """domain tables
 
-Revision ID: 10332d33cf38
+Revision ID: e82e916b7f97
 Revises: 2dc84dd564d2
-Create Date: 2026-09-11 11:33:06.701801
+Create Date: 2026-09-11 12:06:10.189269
 
 """
 from typing import Sequence, Union
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = '10332d33cf38'
+revision: str = 'e82e916b7f97'
 down_revision: Union[str, None] = '2dc84dd564d2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -26,9 +26,10 @@ def upgrade() -> None:
     sa.Column('recipient', sa.String(length=255), nullable=False),
     sa.Column('payload', sa.JSON(), nullable=False),
     sa.Column('sent_at', sa.DateTime(timezone=True), nullable=True),
-    sa.PrimaryKeyConstraint('id'),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_notifications')),
     sa.UniqueConstraint('kind', 'entity_id', name='uq_notifications_kind_entity')
     )
+    op.create_index('ix_notifications_unsent', 'notifications', ['id'], unique=False, postgresql_where=sa.text('sent_at IS NULL'))
     op.create_table('sales',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=False),
@@ -38,20 +39,25 @@ def upgrade() -> None:
     sa.Column('starts_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('ends_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('timezone', sa.String(length=64), nullable=False),
-    sa.Column('status', sa.String(length=16), nullable=False),
-    sa.CheckConstraint('available >= 0', name='ck_sales_available_nonnegative'),
-    sa.CheckConstraint('starts_at < ends_at', name='ck_sales_start_before_end'),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('status', sa.String(length=16), server_default='active', nullable=False),
+    sa.CheckConstraint("status IN ('active', 'ended')", name=op.f('ck_sales_status_valid')),
+    sa.CheckConstraint('available <= quantity', name=op.f('ck_sales_available_le_quantity')),
+    sa.CheckConstraint('available >= 0', name=op.f('ck_sales_available_nonnegative')),
+    sa.CheckConstraint('quantity > 0', name=op.f('ck_sales_quantity_positive')),
+    sa.CheckConstraint('starts_at < ends_at', name=op.f('ck_sales_start_before_end')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_sales'))
     )
     op.create_index('ix_sales_status_ends_at', 'sales', ['status', 'ends_at'], unique=False)
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
     sa.Column('password_hash', sa.String(length=255), nullable=False),
-    sa.Column('role', sa.String(length=16), nullable=False),
-    sa.PrimaryKeyConstraint('id')
+    sa.Column('role', sa.String(length=16), server_default='buyer', nullable=False),
+    sa.CheckConstraint("role IN ('buyer', 'shop')", name=op.f('ck_users_role_valid')),
+    sa.CheckConstraint('email = lower(email)', name=op.f('ck_users_email_lowercase')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_users')),
+    sa.UniqueConstraint('email', name=op.f('uq_users_email'))
     )
-    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
     op.create_table('reservations',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('sale_id', sa.Integer(), nullable=False),
@@ -59,21 +65,24 @@ def upgrade() -> None:
     sa.Column('status', sa.String(length=16), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('released_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.CheckConstraint("status IN ('held', 'paying', 'sold', 'expired', 'released', 'cleared')", name=op.f('ck_reservations_status_valid')),
+    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], name=op.f('fk_reservations_sale_id_sales')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_reservations_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_reservations'))
     )
     op.create_index('ix_reservations_status_expires_at', 'reservations', ['status', 'expires_at'], unique=False)
+    op.create_index(op.f('ix_reservations_user_id'), 'reservations', ['user_id'], unique=False)
     op.create_index('uq_reservations_sale_user_active', 'reservations', ['sale_id', 'user_id'], unique=True, postgresql_where=sa.text("status IN ('held', 'paying')"))
     op.create_table('sessions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('token_hash', sa.String(length=64), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id')
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_sessions_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_sessions')),
+    sa.UniqueConstraint('token_hash', name=op.f('uq_sessions_token_hash'))
     )
-    op.create_index(op.f('ix_sessions_token_hash'), 'sessions', ['token_hash'], unique=True)
+    op.create_index(op.f('ix_sessions_user_id'), 'sessions', ['user_id'], unique=False)
     op.create_table('orders',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('reservation_id', sa.Integer(), nullable=False),
@@ -82,13 +91,16 @@ def upgrade() -> None:
     sa.Column('amount_minor', sa.BigInteger(), nullable=False),
     sa.Column('status', sa.String(length=16), nullable=False),
     sa.Column('idempotency_key', sa.String(length=64), nullable=False),
-    sa.ForeignKeyConstraint(['reservation_id'], ['reservations.id'], ),
-    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('reservation_id'),
+    sa.CheckConstraint("status IN ('pending', 'paid', 'cancelled')", name=op.f('ck_orders_status_valid')),
+    sa.ForeignKeyConstraint(['reservation_id'], ['reservations.id'], name=op.f('fk_orders_reservation_id_reservations')),
+    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], name=op.f('fk_orders_sale_id_sales')),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('fk_orders_user_id_users')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_orders')),
+    sa.UniqueConstraint('reservation_id', name='uq_orders_reservation_id'),
     sa.UniqueConstraint('user_id', 'idempotency_key', name='uq_orders_user_idempotency')
     )
+    op.create_index(op.f('ix_orders_sale_id'), 'orders', ['sale_id'], unique=False)
+    op.create_index(op.f('ix_orders_user_id'), 'orders', ['user_id'], unique=False)
     op.create_table('payments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('order_id', sa.Integer(), nullable=False),
@@ -96,10 +108,12 @@ def upgrade() -> None:
     sa.Column('status', sa.String(length=16), nullable=False),
     sa.Column('requested_at', sa.DateTime(timezone=True), nullable=False),
     sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('provider_ref')
+    sa.CheckConstraint("status IN ('pending', 'approved', 'declined')", name=op.f('ck_payments_status_valid')),
+    sa.ForeignKeyConstraint(['order_id'], ['orders.id'], name=op.f('fk_payments_order_id_orders')),
+    sa.PrimaryKeyConstraint('id', name=op.f('pk_payments')),
+    sa.UniqueConstraint('provider_ref', name='uq_payments_provider_ref')
     )
+    op.create_index(op.f('ix_payments_order_id'), 'payments', ['order_id'], unique=False)
     op.create_index('uq_payments_order_pending', 'payments', ['order_id'], unique=True, postgresql_where=sa.text("status = 'pending'"))
     # ### end Alembic commands ###
 
@@ -107,16 +121,20 @@ def upgrade() -> None:
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_index('uq_payments_order_pending', table_name='payments', postgresql_where=sa.text("status = 'pending'"))
+    op.drop_index(op.f('ix_payments_order_id'), table_name='payments')
     op.drop_table('payments')
+    op.drop_index(op.f('ix_orders_user_id'), table_name='orders')
+    op.drop_index(op.f('ix_orders_sale_id'), table_name='orders')
     op.drop_table('orders')
-    op.drop_index(op.f('ix_sessions_token_hash'), table_name='sessions')
+    op.drop_index(op.f('ix_sessions_user_id'), table_name='sessions')
     op.drop_table('sessions')
     op.drop_index('uq_reservations_sale_user_active', table_name='reservations', postgresql_where=sa.text("status IN ('held', 'paying')"))
+    op.drop_index(op.f('ix_reservations_user_id'), table_name='reservations')
     op.drop_index('ix_reservations_status_expires_at', table_name='reservations')
     op.drop_table('reservations')
-    op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
     op.drop_index('ix_sales_status_ends_at', table_name='sales')
     op.drop_table('sales')
+    op.drop_index('ix_notifications_unsent', table_name='notifications', postgresql_where=sa.text('sent_at IS NULL'))
     op.drop_table('notifications')
     # ### end Alembic commands ###
