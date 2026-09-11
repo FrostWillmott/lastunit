@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import json
+from typing import Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import Clock
@@ -27,6 +27,11 @@ class PayRequest(BaseModel):
 
 class PayResponse(BaseModel):
     status: str  # "approved" | "declined" | "pending"
+
+
+class WebhookPayload(BaseModel):
+    reference: str
+    status: Literal["approved", "declined"]
 
 
 @router.post("/orders/{order_id}/pay", response_model=PayResponse)
@@ -88,14 +93,10 @@ async def webhook(
     if not hmac.compare_digest(signature, expected):
         raise HTTPException(status_code=401, detail="invalid signature")
     try:
-        payload = json.loads(body)
-        reference = payload["reference"]
-        status = payload["status"]
-    except (json.JSONDecodeError, KeyError, TypeError):
+        payload = WebhookPayload.model_validate_json(body)
+    except ValidationError:
         raise HTTPException(status_code=400, detail="invalid webhook payload") from None
-    if status not in ("approved", "declined"):
-        raise HTTPException(status_code=400, detail="invalid status") from None
     await payments_service.apply_payment_result(
-        db, reference, status, await clock.now(), broadcaster
+        db, payload.reference, payload.status, await clock.now(), broadcaster
     )
     return {"ok": True}

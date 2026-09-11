@@ -217,3 +217,25 @@ async def test_paystub_timeout_keeps_order_pending() -> None:
         order = await session.scalar(select(Order).where(Order.id == order_id))
         assert order is not None
         assert order.status == OrderStatus.PENDING.value
+
+
+async def test_webhook_rejects_malformed_payloads() -> None:
+    paystub = FakePaystubClient("pending")
+    client, _ = await _setup(paystub)
+
+    def sign(body: bytes) -> str:
+        return hmac.new(b"dev-secret", body, hashlib.sha256).hexdigest()
+
+    async with client:
+        for body in (
+            b"\xff\xff\xff",  # not valid UTF-8 / not JSON
+            b'{"reference": 123, "status": "approved"}',
+            b'{"reference": null, "status": "approved"}',
+            b'{"reference": "r", "status": "wat"}',
+        ):
+            response = await client.post(
+                "/api/payments/webhook",
+                content=body,
+                headers={"X-Webhook-Signature": sign(body)},
+            )
+            assert response.status_code == 400, body

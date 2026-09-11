@@ -14,14 +14,14 @@ from app.models.sale import Sale
 from app.models.user import User
 from app.realtime import Broadcaster
 from app.services import cart, sales as sales_service
-from app.services.sales import SalePhase
+from app.services.sales import InvalidSaleWindowError, SalePhase
 
 router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 class SaleCreateRequest(BaseModel):
     title: str = Field(max_length=255)
-    price_minor: int
+    price_minor: int = Field(ge=0)
     quantity: int = Field(ge=1)
     timezone: str
     starts_at: datetime
@@ -34,6 +34,15 @@ class SaleCreateRequest(BaseModel):
             ZoneInfo(value)
         except ZoneInfoNotFoundError:
             raise ValueError(f"unknown timezone: {value}") from None
+        return value
+
+    @field_validator("starts_at", "ends_at")
+    @classmethod
+    def _require_naive(cls, value: datetime) -> datetime:
+        if value.tzinfo is not None:
+            raise ValueError(
+                "start/end times must be naive wall-clock; the timezone field carries the zone"
+            )
         return value
 
     @model_validator(mode="after")
@@ -99,15 +108,21 @@ async def create_sale(
     clock: Clock = Depends(get_clock),
     _shop: object = Depends(require_shop),
 ) -> SaleResponse:
-    sale = await sales_service.create_sale(
-        db,
-        title=body.title,
-        price_minor=body.price_minor,
-        quantity=body.quantity,
-        tz_name=body.timezone,
-        starts_at_local=body.starts_at,
-        ends_at_local=body.ends_at,
-    )
+    try:
+        sale = await sales_service.create_sale(
+            db,
+            title=body.title,
+            price_minor=body.price_minor,
+            quantity=body.quantity,
+            tz_name=body.timezone,
+            starts_at_local=body.starts_at,
+            ends_at_local=body.ends_at,
+        )
+    except InvalidSaleWindowError:
+        raise HTTPException(
+            status_code=422,
+            detail="ends_at must be after starts_at in the sale's timezone",
+        ) from None
     return _to_response(sale, await clock.now())
 
 
