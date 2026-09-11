@@ -37,7 +37,8 @@ Architecture. No repository layer: services call SQLAlchemy directly.
 - `make check` is green: dev tooling (pytest, pytest-asyncio, mypy, pytest-cov)
   lives in `[dependency-groups] dev`, installed by `uv sync --all-extras` and left
   out of the image by `UV_NO_DEV=1`.
-- The backend serves `GET /api/health`, which the frontend already calls.
+- The backend serves `GET /api/health` (liveness). The frontend is a Vue 3 SPA
+  (router + Pinia + a typed `src/api/` client) that talks to it only through `/api/*`.
 
 ## Commands
 ```bash
@@ -50,7 +51,7 @@ make ci        # check + frontend-build + audit — exactly what GitHub Actions 
 
 # single test
 uv run pytest tests/unit/services/test_order.py::test_name -v
-cd frontend && npx vitest run src/App.test.ts
+cd frontend && npx vitest run src/api/client.test.ts
 ```
 
 Backend and frontend are separate origins in dev; the browser only ever talks to
