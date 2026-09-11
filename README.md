@@ -13,7 +13,7 @@ the full per-session tool/model record lives in `agent-sessions/`.
 
 ## Stack
 
-- Backend: FastAPI (Python 3.12, uv), async SQLAlchemy + PostgreSQL 17.
+- Backend: FastAPI (Python 3.12, uv), PostgreSQL 17 (async SQLAlchemy lands in stage 1).
 - Frontend: Vue 3 + TypeScript (Vite).
 - Payment and email are stubs by design.
 
@@ -37,15 +37,14 @@ generates the secrets, and `docker compose` refuses to start without them.
 ## Configuration
 
 `make env` copies `.env.example` to `.env` and fills empty secrets with
-`openssl rand`.
+`openssl rand`. Defaults live in `.env.example` — the single source of truth.
 
-| Variable | Default | What it changes |
-|---|---|---|
-| `APP_ENV` | `dev` | `dev` enables API docs; `prod` disables them (later: Secure cookies). |
-| `LOG_LEVEL` | `INFO` | Backend log verbosity. |
-| `POSTGRES_USER` | `app` | Database role. |
-| `POSTGRES_PASSWORD` | — | Database password (generated). |
-| `POSTGRES_DB` | `app` | Database name. |
+| Variable | What it changes |
+|---|---|
+| `APP_ENV` | `dev` enables API docs, `prod` disables them (later: Secure cookies). |
+| `LOG_LEVEL` | Backend app log verbosity. |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Database role, password (generated), name. |
+| `VITE_API_URL` | Backend origin the Vite dev proxy forwards `/api` to. |
 
 ## Testing
 

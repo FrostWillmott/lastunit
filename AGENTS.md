@@ -17,28 +17,27 @@ its "Ожидаемое поведение" bullets are the acceptance criteria.
 on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
-Status: scaffold only. The backend is a bare `FastAPI()` in root `main.py`, there
-are no models, routes or `tests/`, and `README.md` and `.env.example` are empty.
+Status: stage 0 done. The backend is an `app/` package (`app/main.py` with a
+`create_app()` factory and the module-level `app` uvicorn imports, `app/config.py`
+Settings, `GET /api/health` under `/api`) with `tests/unit/` (health,
+env-contract, no-local-time) and dev deps (pytest, pytest-asyncio, mypy,
+pytest-cov). No models, routes, DB or migrations yet — that is stage 1.
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
 frontend-vue, documentation. Every file in `.claude/rules/` applies.
 
-## Architecture divergences
+## Architecture
 3-layer split (`routers/` → `services/` → DB session), NOT full Clean
 Architecture. No repository layer: services call SQLAlchemy directly.
 
-Scaffold mismatches to reconcile before the first backend change (each spans
-several files, so none is visible from one file alone):
-- The Dockerfile runs `app.main:app` and `ruff.toml` sets `known-first-party = ["app"]`,
-  but the code lives in root `main.py`. The intended layout is an `app/` package;
-  move `main.py` there rather than editing the Dockerfile.
-- `make check` cannot pass yet: `pyproject.toml` declares only fastapi and uvicorn
-  (no pytest, pytest-asyncio, mypy) and `tests/` does not exist. Makefile and CI
-  install with `uv sync --all-extras`, the image with `UV_NO_DEV=1`, so dev tooling
-  belongs in dev dependencies/extras, not in `dependencies`.
-- The frontend calls `/api/health`, which the backend does not serve. `test_main.http`
-  is IDE boilerplate for routes that do not exist.
+- The backend is an `app/` package: `app/main.py` exposes `create_app()` plus the
+  module-level `app` that the Dockerfile's `uvicorn app.main:app` imports; routes
+  live under `app/routers/`, settings in `app/config.py`.
+- `make check` is green: dev tooling (pytest, pytest-asyncio, mypy, pytest-cov)
+  lives in `[dependency-groups] dev`, installed by `uv sync --all-extras` and left
+  out of the image by `UV_NO_DEV=1`.
+- The backend serves `GET /api/health`, which the frontend already calls.
 
 ## Commands
 ```bash
