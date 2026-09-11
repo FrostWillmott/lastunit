@@ -31,9 +31,8 @@ export default defineConfig({
       include: ['src/stores/**', 'src/api/**'],
       exclude: ['src/**/*.test.ts'],
       // Threshold is the signal the test-quality audit looks for; raise as
-      // the app grows, never lower it to make CI green. 75 is what the auth
-      // commit's first real suite reaches (stores + api fully exercised).
-      thresholds: { lines: 75, statements: 75 },
+      // the app grows, never lower it to make CI green.
+      thresholds: { lines: 80, statements: 80 },
     },
   },
 })
