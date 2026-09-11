@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,10 +38,12 @@ class SaleStatsResponse(BaseModel):
 async def sale_stats(
     sale_id: int,
     db: AsyncSession = Depends(get_db),
+    clock: Clock = Depends(get_clock),
 ) -> SaleStatsResponse:
-    stats = await shop_service.sale_stats(db, sale_id)
-    if stats is None:
-        raise HTTPException(status_code=404, detail="sale not found")
+    try:
+        stats = await shop_service.sale_stats(db, sale_id, await clock.now())
+    except shop_service.SaleNotFoundError:
+        raise HTTPException(status_code=404, detail="sale not found") from None
     return SaleStatsResponse(
         available=stats.available,
         sold=stats.sold,
@@ -68,7 +71,12 @@ async def check_payment(
     clock: Clock = Depends(get_clock),
     paystub: PaystubClient = Depends(get_paystub),
 ) -> dict[str, str]:
-    status = await paystub.get_status(reference)
+    try:
+        status = await paystub.get_status(reference)
+    except httpx.HTTPError:
+        raise HTTPException(
+            status_code=502, detail="payment stub unavailable"
+        ) from None
     if status in ("approved", "declined"):
         await payments_service.apply_payment_result(
             db, reference, status, await clock.now()
