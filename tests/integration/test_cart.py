@@ -156,3 +156,68 @@ async def test_last_unit_two_buyers_one_wins() -> None:
 
     results = await asyncio.gather(try_reserve(buyer_a), try_reserve(buyer_b))
     assert sorted(results) == ["sold out", "won"]
+
+
+async def test_release_returns_unit_to_shelf() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        await _login(client, *_SHOP)
+        sale_id = await _create_sale(
+            client, "2026-06-01T11:00:00", "2026-06-01T13:00:00"
+        )
+
+        await _login(client, *_BUYER)
+        reserve_resp = await client.post(f"/api/sales/{sale_id}/reserve")
+        reservation_id = int(reserve_resp.json()["id"])
+
+        release = await client.delete(f"/api/reservations/{reservation_id}")
+        assert release.status_code == 204
+
+        get = await client.get(f"/api/sales/{sale_id}")
+        assert get.json()["available"] == 5
+
+
+async def test_view_cart_lists_held_reservation() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        await _login(client, *_SHOP)
+        sale_id = await _create_sale(
+            client, "2026-06-01T11:00:00", "2026-06-01T13:00:00"
+        )
+
+        await _login(client, *_BUYER)
+        await client.post(f"/api/sales/{sale_id}/reserve")
+
+        cart_resp = await client.get("/api/me/cart")
+        assert cart_resp.status_code == 200
+        items = cart_resp.json()
+        assert len(items) == 1
+        assert items[0]["sale_id"] == sale_id
+        assert items[0]["title"] == "Flash sale"
+
+
+async def test_release_not_found_for_other_buyer() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+    await _ensure_user("other@example.com", "other-pw", UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        await _login(client, *_SHOP)
+        sale_id = await _create_sale(
+            client, "2026-06-01T11:00:00", "2026-06-01T13:00:00"
+        )
+
+        await _login(client, *_BUYER)
+        reserve_resp = await client.post(f"/api/sales/{sale_id}/reserve")
+        reservation_id = int(reserve_resp.json()["id"])
+
+        await _login(client, "other@example.com", "other-pw")
+        release = await client.delete(f"/api/reservations/{reservation_id}")
+        assert release.status_code == 404

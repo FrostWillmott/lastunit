@@ -34,6 +34,14 @@ class AlreadyInCartError(Exception):
     pass
 
 
+class ReservationNotFoundError(Exception):
+    pass
+
+
+class NotHeldError(Exception):
+    pass
+
+
 async def reserve(
     db: AsyncSession,
     sale_id: int,
@@ -97,3 +105,55 @@ async def reserve(
         "stock_changed", {"sale_id": sale_id, "available": new_available}
     )
     return reservation
+
+
+async def release(
+    db: AsyncSession,
+    reservation_id: int,
+    user_id: int,
+    now: datetime,
+) -> tuple[int, int]:
+    """Release a held reservation and return its unit to the shelf."""
+    result = await db.execute(
+        update(Reservation)
+        .where(
+            Reservation.id == reservation_id,
+            Reservation.user_id == user_id,
+            Reservation.status == ReservationStatus.HELD.value,
+        )
+        .values(status=ReservationStatus.RELEASED.value, released_at=now)
+        .returning(Reservation.sale_id)
+    )
+    sale_id = result.scalar_one_or_none()
+    if sale_id is None:
+        reservation = (
+            await db.execute(
+                select(Reservation).where(Reservation.id == reservation_id)
+            )
+        ).scalar_one_or_none()
+        if reservation is None or reservation.user_id != user_id:
+            raise ReservationNotFoundError
+        raise NotHeldError
+
+    result = await db.execute(
+        update(Sale)
+        .where(Sale.id == sale_id)
+        .values(available=Sale.available + 1)
+        .returning(Sale.available)
+    )
+    new_available = result.scalar_one()
+    await db.commit()
+    return sale_id, new_available
+
+
+async def list_cart(db: AsyncSession, user_id: int) -> list[tuple[Reservation, Sale]]:
+    result = await db.execute(
+        select(Reservation, Sale)
+        .join(Sale, Sale.id == Reservation.sale_id)
+        .where(
+            Reservation.user_id == user_id,
+            Reservation.status == ReservationStatus.HELD.value,
+        )
+        .order_by(Reservation.expires_at)
+    )
+    return list(result.tuples().all())
