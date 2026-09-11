@@ -6,14 +6,19 @@ from sqlalchemy import BigInteger, CheckConstraint, DateTime, Index, Integer, St
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
-from app.models.enums import SaleStatus
+from app.models.enums import SALE_STATUS_VALUES, SaleStatus, sql_in_list
 
 
 class Sale(Base):
     __tablename__ = "sales"
     __table_args__ = (
-        CheckConstraint("available >= 0", name="ck_sales_available_nonnegative"),
-        CheckConstraint("starts_at < ends_at", name="ck_sales_start_before_end"),
+        CheckConstraint("available >= 0", name="available_nonnegative"),
+        CheckConstraint("available <= quantity", name="available_le_quantity"),
+        CheckConstraint("quantity > 0", name="quantity_positive"),
+        CheckConstraint("starts_at < ends_at", name="start_before_end"),
+        CheckConstraint(
+            f"status IN ({sql_in_list(SALE_STATUS_VALUES)})", name="status_valid"
+        ),
         Index("ix_sales_status_ends_at", "status", "ends_at"),
     )
 
@@ -25,4 +30,6 @@ class Sale(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     timezone: Mapped[str] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(16), default=SaleStatus.ACTIVE.value)
+    status: Mapped[str] = mapped_column(
+        String(16), server_default=SaleStatus.ACTIVE.value
+    )

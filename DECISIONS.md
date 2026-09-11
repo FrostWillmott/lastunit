@@ -13,12 +13,14 @@ that supersedes it.
 ## 2026-09-11 — Domain schema: invariants live in constraints
 The first migration creates users, sessions, sales, reservations, orders,
 payments and notifications. Guarantees are schema constraints, not app checks:
-`CHECK (available >= 0)` and `CHECK (starts_at < ends_at)` on sales; partial
-UNIQUE `(sale_id, user_id)` on reservations where `status IN ('held','paying')`;
-UNIQUE `(user_id, idempotency_key)` on orders; partial UNIQUE `(order_id)` on
-payments where `status = 'pending'`; UNIQUE `(kind, entity_id)` on notifications.
-Statuses are string enums in `app/models/enums.py`; each transition is a guarded
-`UPDATE ... WHERE status = <from>`.
+`CHECK (available >= 0)`, `CHECK (available <= quantity)`, `CHECK (quantity > 0)`
+and `CHECK (starts_at < ends_at)` on sales; a `CHECK` that every status/role
+column holds an enum value (so a case-variant cannot slip past the partial
+indexes); `CHECK (email = lower(email))`; partial UNIQUE `(sale_id, user_id)` on
+reservations where `status IN ('held','paying')`; UNIQUE `(user_id, idempotency_key)`
+on orders; partial UNIQUE `(order_id)` on payments where `status = 'pending'`;
+UNIQUE `(kind, entity_id)` on notifications. Statuses are string enums in
+`app/models/enums.py`; each transition is a guarded `UPDATE ... WHERE status = <from>`.
 
 ## 2026-09-11 — Sale times are absolute, in the shop's IANA zone
 The shop creates a sale with a wall-clock start/end plus a `timezone` (IANA) column

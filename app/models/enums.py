@@ -34,6 +34,27 @@ class PaymentStatus(StrEnum):
     DECLINED = "declined"
 
 
+# Value tuples so the CHECK constraints and partial-index predicates in the
+# models are derived from these enums (single source of truth) rather than
+# hand-copied string literals that can drift.
+USER_ROLE_VALUES = tuple(r.value for r in UserRole)
+SALE_STATUS_VALUES = tuple(s.value for s in SaleStatus)
+RESERVATION_STATUS_VALUES = tuple(s.value for s in ReservationStatus)
+ORDER_STATUS_VALUES = tuple(s.value for s in OrderStatus)
+PAYMENT_STATUS_VALUES = tuple(s.value for s in PaymentStatus)
+
+ACTIVE_RESERVATION_VALUES = (
+    ReservationStatus.HELD.value,
+    ReservationStatus.PAYING.value,
+)
+PENDING_PAYMENT_VALUE = PaymentStatus.PENDING.value
+
+
+def sql_in_list(values: tuple[str, ...]) -> str:
+    """Render values as the body of a SQL ``IN (...)`` list, e.g. ``'a', 'b'``."""
+    return ", ".join(repr(v) for v in values)
+
+
 # State machine — the single source of truth for which transitions are valid.
 # Services enforce these as guarded ``UPDATE ... WHERE status = <from>`` (zero
 # rows → 409 or no-op), never by a Python check; see docs/plan.md "Машины
