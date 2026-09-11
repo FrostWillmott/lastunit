@@ -24,6 +24,16 @@ class ReservationAlreadyOrderedError(Exception):
     pass
 
 
+async def list_user_orders(db: AsyncSession, user_id: int) -> list[Order]:
+    return list(
+        (
+            await db.scalars(
+                select(Order).where(Order.user_id == user_id).order_by(Order.id)
+            )
+        ).all()
+    )
+
+
 async def create_order(
     db: AsyncSession,
     reservation_id: int,

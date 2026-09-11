@@ -15,6 +15,9 @@ class PaystubClient(Protocol):
     ) -> str:
         """Return the stub's outcome: 'approved' | 'declined' | 'pending'."""
 
+    async def get_status(self, reference: str) -> str:
+        """Return a payment's current status (for the shop's check-status button)."""
+
 
 class HttpPaystubClient:
     def __init__(
@@ -39,5 +42,10 @@ class HttpPaystubClient:
                 "callback_url": callback_url,
             },
         )
+        response.raise_for_status()
+        return str(response.json()["status"])
+
+    async def get_status(self, reference: str) -> str:
+        response = await self._http_client.get(f"{self._base_url}/payments/{reference}")
         response.raise_for_status()
         return str(response.json()["status"])
