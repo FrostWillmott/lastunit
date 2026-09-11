@@ -10,6 +10,7 @@ from app.config import Settings
 from app.db import get_db
 from app.models.enums import UserRole
 from app.models.user import User
+from app.realtime import Broadcaster
 from app.services import auth
 
 SESSION_COOKIE = "session"
@@ -21,6 +22,10 @@ def get_settings(request: Request) -> Settings:
 
 def get_clock(request: Request) -> Clock:
     return cast(Clock, request.app.state.clock)
+
+
+def get_broadcaster(request: Request) -> Broadcaster:
+    return cast(Broadcaster, request.app.state.broadcaster)
 
 
 async def current_user(
