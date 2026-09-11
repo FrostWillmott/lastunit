@@ -100,6 +100,35 @@ describe('sales store', () => {
     expect(store.sales[0]?.available).toBe(3)
   })
 
+  // The frontend half of "two tabs stay in sync": a second client's store
+  // applies a stream of stock events and tracks each one, not just the last.
+  it('applies two successive stock events and reflects each', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => [SALE] })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [{ ...SALE, available: 4 }],
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => [{ ...SALE, available: 3 }],
+      })
+    vi.stubGlobal('fetch', fetch)
+    const store = useSalesStore()
+    await store.fetchSales()
+    expect(store.sales[0]?.available).toBe(5)
+
+    await store.applyEvent('stock_changed')
+    expect(store.sales[0]?.available).toBe(4)
+
+    await store.applyEvent('stock_changed')
+    expect(store.sales[0]?.available).toBe(3)
+    expect(fetch).toHaveBeenCalledTimes(3)
+  })
+
   it('applyEvent ignores unrelated events', async () => {
     const fetch = jsonFetch(200, [SALE])
     vi.stubGlobal('fetch', fetch)
