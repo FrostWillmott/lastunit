@@ -11,7 +11,7 @@ from app.db import get_db
 from app.deps import current_user, get_broadcaster, get_clock
 from app.models.user import User
 from app.realtime import Broadcaster
-from app.services import cart
+from app.services import cart, orders as orders_service
 
 router = APIRouter(tags=["cart"])
 
@@ -27,6 +27,14 @@ class CartItemResponse(BaseModel):
 class CartResponse(BaseModel):
     server_now: datetime
     items: list[CartItemResponse]
+
+
+class OrderResponse(BaseModel):
+    id: int
+    reservation_id: int
+    sale_id: int
+    amount_minor: int
+    status: str
 
 
 @router.delete("/reservations/{reservation_id}", status_code=204)
@@ -67,3 +75,21 @@ async def view_cart(
             for reservation, sale in items
         ],
     )
+
+
+@router.get("/me/orders", response_model=list[OrderResponse])
+async def list_orders(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(current_user),
+) -> list[OrderResponse]:
+    orders = await orders_service.list_user_orders(db, user.id)
+    return [
+        OrderResponse(
+            id=order.id,
+            reservation_id=order.reservation_id,
+            sale_id=order.sale_id,
+            amount_minor=order.amount_minor,
+            status=order.status,
+        )
+        for order in orders
+    ]

@@ -39,12 +39,18 @@ class FakePaystubClient:
         )
         return self.outcome
 
+    async def get_status(self, reference: str) -> str:
+        return self.outcome
+
 
 class TimeoutPaystubClient:
     async def charge(
         self, reference: str, amount_minor: int, card_number: str, callback_url: str
     ) -> str:
         raise httpx.ConnectTimeout("timed out")
+
+    async def get_status(self, reference: str) -> str:
+        return "pending"
 
 
 def _client(paystub: PaystubClient, clock: Clock | None = None) -> httpx.AsyncClient:
