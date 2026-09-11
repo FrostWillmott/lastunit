@@ -35,7 +35,8 @@ under `/api`). `.env` is never committed and has no default password: `make env`
 generates the secrets, and `docker compose` refuses to start without them.
 `make up` (and `make seed`) also creates a demo shop account — `shop@example.com`
 / `shop-password`, seeded only when `APP_ENV != prod` — so you can log into the
-shop screen.
+shop screen. Payment is a stub (`paystub/`, port 8001): card `…0000` approves,
+`…0002` declines, `…9995` hangs until you resolve it on `localhost:8001/docs`.
 
 ## Configuration
 
