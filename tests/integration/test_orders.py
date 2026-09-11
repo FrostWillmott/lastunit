@@ -154,3 +154,42 @@ async def test_release_cancels_order() -> None:
         db_order = await session.scalar(select(Order).where(Order.id == order_id))
         assert db_order is not None
         assert db_order.status == OrderStatus.CANCELLED.value
+
+
+async def test_create_order_empty_idempotency_key_422() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        reservation_id = await _reserve(client)
+        response = await client.post(
+            "/api/orders",
+            json={"reservation_id": reservation_id},
+            headers={"Idempotency-Key": ""},
+        )
+        assert response.status_code == 422
+
+
+async def test_create_order_key_reuse_for_other_reservation_409() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        reservation_a = await _reserve(client)
+        reservation_b = await _reserve(client)
+
+        first = await client.post(
+            "/api/orders",
+            json={"reservation_id": reservation_a},
+            headers={"Idempotency-Key": "key-reuse"},
+        )
+        assert first.status_code == 201
+
+        reuse = await client.post(
+            "/api/orders",
+            json={"reservation_id": reservation_b},
+            headers={"Idempotency-Key": "key-reuse"},
+        )
+        assert reuse.status_code == 409

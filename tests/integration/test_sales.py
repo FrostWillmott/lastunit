@@ -97,3 +97,41 @@ async def test_list_sales() -> None:
         response = await client.get("/api/sales")
         assert response.status_code == 200
         assert len(response.json()) == 1
+
+
+async def test_create_sale_rejects_negative_price() -> None:
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    async with _client() as client:
+        await _login(client, *_SHOP)
+        payload = _payload()
+        payload["price_minor"] = -5000
+        response = await client.post("/api/sales", json=payload)
+        assert response.status_code == 422
+
+
+async def test_create_sale_rejects_offset_aware_time() -> None:
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    async with _client() as client:
+        await _login(client, *_SHOP)
+        payload = _payload()
+        payload["ends_at"] = "2026-06-01T13:00:00Z"
+        response = await client.post("/api/sales", json=payload)
+        assert response.status_code == 422
+
+
+async def test_create_sale_rejects_dst_collapsed_window() -> None:
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    async with _client() as client:
+        await _login(client, *_SHOP)
+        response = await client.post(
+            "/api/sales",
+            json={
+                "title": "DST gap",
+                "price_minor": 1000,
+                "quantity": 5,
+                "timezone": "Europe/Berlin",
+                "starts_at": "2026-03-29T02:30:00",
+                "ends_at": "2026-03-29T03:30:00",
+            },
+        )
+        assert response.status_code == 422

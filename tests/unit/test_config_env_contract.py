@@ -12,9 +12,10 @@ ROOT = Path(__file__).resolve().parents[2]
 NON_SETTINGS_KEYS = frozenset(
     {"POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB", "VITE_API_URL"}
 )
-# Settings fields that compose derives from POSTGRES_* (and CI sets directly)
-# rather than reading from .env, so they are intentionally absent from the file.
-COMPOSE_DERIVED_KEYS = frozenset({"DATABASE_URL"})
+# Settings fields that compose derives rather than reading from .env (DATABASE_URL
+# from POSTGRES_*, the two URLs from service names) and that CI sets directly, so
+# they are intentionally absent from the file.
+COMPOSE_DERIVED_KEYS = frozenset({"DATABASE_URL", "PAYSTUB_URL", "PUBLIC_BASE_URL"})
 
 
 def _documented_keys() -> set[str]:

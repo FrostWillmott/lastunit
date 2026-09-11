@@ -24,6 +24,10 @@ class ReservationAlreadyOrderedError(Exception):
     pass
 
 
+class IdempotencyKeyReuseError(Exception):
+    pass
+
+
 async def list_user_orders(db: AsyncSession, user_id: int) -> list[Order]:
     return list(
         (
@@ -51,6 +55,8 @@ async def create_order(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if existing.reservation_id != reservation_id:
+            raise IdempotencyKeyReuseError
         return existing
 
     reservation = await db.scalar(
@@ -94,6 +100,8 @@ async def create_order(
             )
         ).scalar_one_or_none()
         if existing is not None:
+            if existing.reservation_id != reservation_id:
+                raise IdempotencyKeyReuseError from None
             return existing
         raise ReservationAlreadyOrderedError from None
     return order

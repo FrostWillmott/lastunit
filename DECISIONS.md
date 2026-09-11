@@ -12,9 +12,10 @@ that supersedes it.
 
 ## 2026-09-11 — Hold expiry is clamped to the sale's end
 A hold's `expires_at` is `min(now + 10 min, sale.ends_at)`, so it never outlives the
-sale. Side effect: paying after the sale ended is indistinguishable from paying after
-the hold lapsed (the hold lapses at or before the sale end), so the "sale has ended"
-409 is dead code and both cases surface as "hold has expired".
+sale. Side effect for the payment transition: paying after the sale ended is
+indistinguishable from paying after the hold lapsed (the hold lapses at or before the
+sale end), so both surface there as "hold has expired". The reserve path keeps its own
+"sale has ended" 409 for a sale that ended before the scheduler swept it.
 
 ## 2026-09-11 — Email via an outbox; sale end zeroes stock
 Order-paid and cart-cleared emails are `notifications` rows (UNIQUE kind+entity) written

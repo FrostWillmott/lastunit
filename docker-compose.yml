@@ -40,7 +40,9 @@ services:
     build:
       context: .
       dockerfile: paystub/Dockerfile
-    env_file: .env
+    environment:
+      # Only the shared webhook secret — not the backend's whole .env.
+      PAYSTUB_WEBHOOK_SECRET: ${PAYSTUB_WEBHOOK_SECRET:?PAYSTUB_WEBHOOK_SECRET is not set — run `make env` to create .env}
     ports:
       - "8001:8001"
 

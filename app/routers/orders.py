@@ -28,7 +28,7 @@ class OrderResponse(BaseModel):
 @router.post("", status_code=201, response_model=OrderResponse)
 async def create_order(
     body: OrderCreateRequest,
-    idempotency_key: str = Header(alias="Idempotency-Key", max_length=64),
+    idempotency_key: str = Header(alias="Idempotency-Key", min_length=1, max_length=64),
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
     user: User = Depends(current_user),
@@ -44,6 +44,11 @@ async def create_order(
     except orders_service.ReservationAlreadyOrderedError:
         raise HTTPException(
             status_code=409, detail="reservation already has an order"
+        ) from None
+    except orders_service.IdempotencyKeyReuseError:
+        raise HTTPException(
+            status_code=409,
+            detail="idempotency key already used for a different reservation",
         ) from None
     return OrderResponse(
         id=order.id,

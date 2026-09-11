@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
 
 from app.deps import get_broadcaster
-from app.realtime import Broadcaster
+from app.realtime import PING_EVENT, Broadcaster
 
 router = APIRouter(tags=["events"])
 
@@ -18,7 +18,10 @@ async def events(
 ) -> StreamingResponse:
     async def generate() -> AsyncIterator[str]:
         async for event, payload in broadcaster.subscribe():
-            yield f"event: {event}\ndata: {json.dumps(payload)}\n\n"
+            if event == PING_EVENT:
+                yield ": ping\n\n"
+            else:
+                yield f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
     return StreamingResponse(
         generate(),
