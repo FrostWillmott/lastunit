@@ -5,7 +5,9 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.19.2",
     "asyncpg>=0.31.0",
+    "email-validator>=2.3.0",
     "fastapi>=0.141.1",
+    "pwdlib[argon2]>=0.3.1",
     "pydantic-settings",
     "sqlalchemy[asyncio]>=2.0.52",
     "uvicorn[standard]>=0.52.4",
@@ -30,7 +32,8 @@ asyncio_mode = "auto"
 # Tests import the `app` package; the project is not installed as a package
 # (uvicorn runs it from the working directory), so put the repo root on sys.path.
 pythonpath = ["."]
-# No --cov-fail-under yet: the coverage threshold lands in commit 5 with the first
-# real domain suite (auth). This commit's tests are config/meta checks, not a suite
-# to pin a number to (testing.md "Coverage"); pytest-cov is declared now so that
-# commit only adds the flag.
+addopts = "--cov=app --cov-fail-under=85"
+
+[tool.coverage.run]
+# __init__.py files are only re-exports (testing.md); migrations live outside app/.
+omit = ["*/__init__.py"]

@@ -19,3 +19,4 @@ class Settings(BaseSettings):
     # this default is only the fallback for running outside compose (local
     # pytest), and matches the CI db service's app:app convention.
     database_url: str = "postgresql+asyncpg://app:app@localhost:5432/app"
+    session_ttl_days: int = 30

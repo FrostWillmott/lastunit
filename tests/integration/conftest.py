@@ -58,7 +58,7 @@ async def _ensure_database_exists() -> None:
         await engine.dispose()
 
 
-from app.db import SessionFactory  # noqa: E402  (env must be set first)
+from app.db import SessionFactory, engine  # noqa: E402  (env must be set first)
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -88,6 +88,15 @@ async def _truncate_tables() -> AsyncIterator[None]:
             )
         await session.commit()
     yield
+
+
+@pytest.fixture(autouse=True)
+async def _dispose_engine() -> AsyncIterator[None]:
+    # asyncpg connections are bound to the event loop they were created in; each
+    # async test runs in a fresh loop, so close the pool after every test or the
+    # next loop reuses a connection from a dead loop.
+    yield
+    await engine.dispose()
 
 
 @pytest.fixture
