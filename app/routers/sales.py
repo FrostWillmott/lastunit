@@ -4,7 +4,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import Clock
@@ -20,9 +20,9 @@ router = APIRouter(prefix="/sales", tags=["sales"])
 
 
 class SaleCreateRequest(BaseModel):
-    title: str
+    title: str = Field(max_length=255)
     price_minor: int
-    quantity: int
+    quantity: int = Field(ge=1)
     timezone: str
     starts_at: datetime
     ends_at: datetime
@@ -35,6 +35,12 @@ class SaleCreateRequest(BaseModel):
         except ZoneInfoNotFoundError:
             raise ValueError(f"unknown timezone: {value}") from None
         return value
+
+    @model_validator(mode="after")
+    def _check_window(self) -> SaleCreateRequest:
+        if self.ends_at <= self.starts_at:
+            raise ValueError("ends_at must be after starts_at")
+        return self
 
 
 class SaleResponse(BaseModel):

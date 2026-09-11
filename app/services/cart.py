@@ -112,10 +112,10 @@ async def reserve(
             now < Sale.ends_at,
         )
         .values(available=Sale.available - 1)
-        .returning(Sale.available, Sale.ends_at)
+        .returning(Sale.ends_at)
     )
-    row = result.first()
-    if row is None:
+    sale_ends_at = result.scalar_one_or_none()
+    if sale_ends_at is None:
         sale = (
             await db.execute(select(Sale).where(Sale.id == sale_id))
         ).scalar_one_or_none()
@@ -126,7 +126,6 @@ async def reserve(
         if sale.ends_at <= now:
             raise SaleEndedError
         raise SoldOutError
-    new_available, sale_ends_at = row
     expires_at = min(now + timedelta(minutes=HOLD_MINUTES), sale_ends_at)
 
     reservation = Reservation(
@@ -142,9 +141,7 @@ async def reserve(
         await db.rollback()
         raise AlreadyInCartError from None
 
-    await broadcaster.publish(
-        "stock_changed", {"sale_id": sale_id, "available": new_available}
-    )
+    await broadcaster.publish("stock_changed", {"sale_id": sale_id})
     return reservation
 
 
@@ -178,13 +175,9 @@ async def release(
             raise ReservationNotFoundError
         raise NotHeldError
 
-    result = await db.execute(
-        update(Sale)
-        .where(Sale.id == sale_id)
-        .values(available=Sale.available + 1)
-        .returning(Sale.available)
+    await db.execute(
+        update(Sale).where(Sale.id == sale_id).values(available=Sale.available + 1)
     )
-    new_available = result.scalar_one()
     # Cancel the reservation's order, if any (one order per reservation).
     await db.execute(
         update(Order)
@@ -195,9 +188,7 @@ async def release(
         .values(status=OrderStatus.CANCELLED.value)
     )
     await db.commit()
-    await broadcaster.publish(
-        "stock_changed", {"sale_id": sale_id, "available": new_available}
-    )
+    await broadcaster.publish("stock_changed", {"sale_id": sale_id})
 
 
 async def list_cart(
