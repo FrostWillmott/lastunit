@@ -20,3 +20,7 @@ class Settings(BaseSettings):
     # pytest), and matches the CI db service's app:app convention.
     database_url: str = "postgresql+asyncpg://app:app@localhost:5432/app"
     session_ttl_days: int = 30
+    # Demo shop account the seed creates; the reviewer logs into the shop screen
+    # with these (not a production secret).
+    seed_shop_email: str = "shop@example.com"
+    seed_shop_password: str = "shop-password"  # noqa: S105  (demo credential, not a secret)

@@ -1,4 +1,4 @@
-.PHONY: help env install install-hooks check fix lint format typecheck test \
+.PHONY: help env install install-hooks seed check fix lint format typecheck test \
         test-unit test-integration \
         frontend-install frontend-check frontend-fix frontend-test frontend-build \
         audit docker-build up down pre-commit ci clean
@@ -43,6 +43,13 @@ env:
 
 install: env frontend-install
 	uv sync --all-extras
+
+# Create the demo shop user from SEED_SHOP_* in .env (idempotent). Like the
+# integration conftest, derive DATABASE_URL from POSTGRES_* for the localhost DB.
+seed:
+	@set -a && . ./.env && set +a && \
+	DATABASE_URL="postgresql+asyncpg://$${POSTGRES_USER:-app}:$${POSTGRES_PASSWORD}@localhost:5432/$${POSTGRES_DB:-app}" \
+	uv run python -m app.seed
 
 install-hooks:
 	uv run pre-commit install
