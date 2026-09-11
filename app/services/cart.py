@@ -69,6 +69,15 @@ async def _expire_lapsed_hold(
             .where(Sale.id == sale_id)
             .values(available=Sale.available + len(lapsed))
         )
+        # Cancel the lapsed reservation's order, if any.
+        await db.execute(
+            update(Order)
+            .where(
+                Order.reservation_id.in_(lapsed),
+                Order.status == OrderStatus.PENDING.value,
+            )
+            .values(status=OrderStatus.CANCELLED.value)
+        )
 
 
 async def reserve(

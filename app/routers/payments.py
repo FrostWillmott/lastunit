@@ -47,12 +47,12 @@ async def pay(
         raise HTTPException(status_code=404, detail="order not found") from None
     except payments_service.HoldExpiredError:
         raise HTTPException(status_code=409, detail="hold has expired") from None
-    except payments_service.SaleEndedError:
-        raise HTTPException(status_code=409, detail="sale has ended") from None
     except payments_service.PaymentAlreadyPendingError:
         raise HTTPException(
             status_code=409, detail="payment already in progress"
         ) from None
+    except payments_service.ReservationNotHeldError:
+        raise HTTPException(status_code=409, detail="reservation is not held") from None
 
     callback_url = f"{settings.public_base_url}/api/payments/webhook"
     try:

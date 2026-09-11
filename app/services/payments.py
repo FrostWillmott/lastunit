@@ -25,7 +25,7 @@ class HoldExpiredError(Exception):
     pass
 
 
-class SaleEndedError(Exception):
+class ReservationNotHeldError(Exception):
     pass
 
 
@@ -74,11 +74,14 @@ async def start_payment(
         .returning(Reservation.id)
     )
     if result.scalar_one_or_none() is None:
-        if reservation.status != ReservationStatus.HELD.value:
-            raise PaymentAlreadyPendingError
-        if reservation.expires_at <= now:
+        if (
+            reservation.status == ReservationStatus.EXPIRED.value
+            or reservation.expires_at <= now
+        ):
             raise HoldExpiredError
-        raise SaleEndedError
+        if reservation.status == ReservationStatus.PAYING.value:
+            raise PaymentAlreadyPendingError
+        raise ReservationNotHeldError  # sold / released / cleared
 
     provider_ref = secrets.token_urlsafe(16)
     db.add(

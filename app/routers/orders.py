@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.clock import Clock
 from app.db import get_db
-from app.deps import current_user
+from app.deps import current_user, get_clock
 from app.models.user import User
 from app.services import orders as orders_service
 
@@ -29,11 +30,12 @@ async def create_order(
     body: OrderCreateRequest,
     idempotency_key: str = Header(alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db),
+    clock: Clock = Depends(get_clock),
     user: User = Depends(current_user),
 ) -> OrderResponse:
     try:
         order = await orders_service.create_order(
-            db, body.reservation_id, user.id, idempotency_key
+            db, body.reservation_id, user.id, idempotency_key, await clock.now()
         )
     except orders_service.ReservationNotFoundError:
         raise HTTPException(status_code=404, detail="reservation not found") from None
