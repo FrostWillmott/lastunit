@@ -30,6 +30,22 @@ async def enqueue_order_paid(
     )
 
 
+async def enqueue_cart_cleared(
+    db: AsyncSession,
+    reservation_id: int,
+    recipient: str,
+) -> None:
+    """Add the cart-cleared notice to the outbox (call inside the cleanup transaction)."""
+    db.add(
+        Notification(
+            kind=CART_CLEARED,
+            entity_id=reservation_id,
+            recipient=recipient,
+            payload={},
+        )
+    )
+
+
 async def send_pending(db: AsyncSession, now: datetime) -> int:
     """Send every unsent notification via the stub and mark it sent."""
     result = await db.execute(
