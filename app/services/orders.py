@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +29,7 @@ async def create_order(
     reservation_id: int,
     user_id: int,
     idempotency_key: str,
+    now: datetime,
 ) -> Order:
     # Idempotency: a repeated key returns the order it created, no second row.
     existing = (
@@ -48,7 +51,10 @@ async def create_order(
     )
     if reservation is None:
         raise ReservationNotFoundError
-    if reservation.status != ReservationStatus.HELD.value:
+    if (
+        reservation.status != ReservationStatus.HELD.value
+        or reservation.expires_at <= now
+    ):
         raise ReservationNotHeldError
 
     sale = await db.scalar(select(Sale).where(Sale.id == reservation.sale_id))
