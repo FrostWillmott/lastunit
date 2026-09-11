@@ -1,4 +1,5 @@
 .PHONY: help env install install-hooks check fix lint format typecheck test \
+        test-unit test-integration \
         frontend-install frontend-check frontend-fix frontend-test frontend-build \
         audit docker-build up down pre-commit ci clean
 
@@ -61,8 +62,13 @@ format:
 typecheck:
 	uv run mypy .
 
-test:
-	uv run pytest tests/ -v
+test: test-unit test-integration
+
+test-unit:
+	uv run pytest tests/unit -v
+
+test-integration:
+	uv run pytest tests/integration -v
 
 # ---- frontend -------------------------------------------------------------
 frontend-install:

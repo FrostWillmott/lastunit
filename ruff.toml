@@ -52,7 +52,7 @@ combine-as-imports = true
 
 [lint.per-file-ignores]
 "__init__.py" = ["F401"]              # re-exports
-"tests/**" = ["S101", "B"]            # asserts are the point; bugbear noisy in tests
+"tests/**" = ["S101", "S105", "B"]    # asserts + test DB creds (app/app is not a secret); bugbear noisy
 "alembic/**" = ["F401", "E402"]
 # Files holding non-ASCII (e.g. Russian) LLM prompts — RUF001 flags Cyrillic as
 # "ambiguous". Local exception, not a global disable. List the real files:

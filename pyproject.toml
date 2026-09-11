@@ -3,8 +3,11 @@ name = "lastunit"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.19.2",
+    "asyncpg>=0.31.0",
     "fastapi>=0.141.1",
     "pydantic-settings",
+    "sqlalchemy[asyncio]>=2.0.52",
     "uvicorn[standard]>=0.52.4",
 ]
 

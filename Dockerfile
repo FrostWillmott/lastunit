@@ -19,6 +19,10 @@ RUN uv sync --locked
 
 ENV PATH="/app/.venv/bin:$PATH"
 EXPOSE 8000
+# Run migrations before the app so `make up` from a clean .env works.
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 # Host/port are the container contract; anything configurable is read from env
 # by the app itself (see .env.example), not overridden here.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

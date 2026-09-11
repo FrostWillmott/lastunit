@@ -16,6 +16,20 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-24.04
+    env:
+      # Integration tests hit a real Postgres (testing.md: never mock the DB).
+      DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/app
+    services:
+      db:
+        image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app" --health-interval 5s
+          --health-timeout 3s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
@@ -28,14 +42,6 @@ jobs:
       - run: uv sync --locked --all-extras
       - name: Lint + format + types + tests
         run: make check
-    # Uncomment when tests need a real database (testing.md: never mock the DB
-    # in integration tests). DATABASE_URL then points at this service.
-    # services:
-    #   db:
-    #     image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
-    #     env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
-    #     ports: ["5432:5432"]
-    #     options: --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 3s --health-retries 10
 
   frontend:
     runs-on: ubuntu-24.04
