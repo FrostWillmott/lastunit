@@ -10,6 +10,16 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-11 — Domain schema: invariants live in constraints
+The first migration creates users, sessions, sales, reservations, orders,
+payments and notifications. Guarantees are schema constraints, not app checks:
+`CHECK (available >= 0)` and `CHECK (starts_at < ends_at)` on sales; partial
+UNIQUE `(sale_id, user_id)` on reservations where `status IN ('held','paying')`;
+UNIQUE `(user_id, idempotency_key)` on orders; partial UNIQUE `(order_id)` on
+payments where `status = 'pending'`; UNIQUE `(kind, entity_id)` on notifications.
+Statuses are string enums in `app/models/enums.py`; each transition is a guarded
+`UPDATE ... WHERE status = <from>`.
+
 ## 2026-09-11 — Sale times are absolute, in the shop's IANA zone
 The shop creates a sale with a wall-clock start/end plus a `timezone` (IANA) column
 on the sale; the backend parses the local time with `zoneinfo.ZoneInfo`, stores
