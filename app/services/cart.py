@@ -6,7 +6,8 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import ACTIVE_RESERVATION_VALUES, ReservationStatus
+from app.models.enums import ACTIVE_RESERVATION_VALUES, OrderStatus, ReservationStatus
+from app.models.order import Order
 from app.models.reservation import Reservation
 from app.models.sale import Sale
 from app.realtime import Broadcaster
@@ -175,6 +176,15 @@ async def release(
         .returning(Sale.available)
     )
     new_available = result.scalar_one()
+    # Cancel the reservation's order, if any (one order per reservation).
+    await db.execute(
+        update(Order)
+        .where(
+            Order.reservation_id == reservation_id,
+            Order.status == OrderStatus.PENDING.value,
+        )
+        .values(status=OrderStatus.CANCELLED.value)
+    )
     await db.commit()
     await broadcaster.publish(
         "stock_changed", {"sale_id": sale_id, "available": new_available}
