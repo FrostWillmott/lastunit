@@ -11,8 +11,14 @@ export const useSalesStore = defineStore('sales', () => {
   // "opens for everyone at once" depends on the backend clock, not the browser's.
   const serverOffset = ref<number | null>(null)
 
+  // Monotonic guard: a burst of events starts several concurrent refetches, and
+  // a slower, older response must not overwrite a newer one.
+  let fetchSeq = 0
+
   async function fetchSales(): Promise<void> {
+    const seq = ++fetchSeq
     const list = await api.listSales()
+    if (seq !== fetchSeq) return
     sales.value = list
     serverOffset.value =
       list.length > 0 ? Date.now() - Date.parse(list[0]!.server_now) : null

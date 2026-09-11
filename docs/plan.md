@@ -96,7 +96,7 @@
 | 7 | Двойное «оплатить»: один заказ, одно списание | `test_double_pay_same_key_one_order`, `test_double_pay_calls_paystub_once` | integration |
 | 8 | Одно письмо о заказе | `test_order_email_sent_exactly_once` | integration, outbox |
 | 9 | По окончании: непроданное снято, корзины очищены, владельцы уведомлены | `test_sale_end_clears_holds_and_notifies` | integration |
-| Т11 | Две вкладки | покрывается 2 + store-тест на два события | frontend |
+| Т11 | Две вкладки | покрывается 2 + store-тест на два события + тест fan-out `useRealtime` | frontend |
 | — | Отклонённая попытка возвращает товар в корзину, заказ жив (У5) | `test_declined_attempt_returns_reservation_to_cart` | integration |
 | — | «Проверить статус» применяет ответ как вебхук (У4) | `test_check_status_applies_result_like_webhook` | integration |
 
