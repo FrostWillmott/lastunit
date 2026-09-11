@@ -12,6 +12,7 @@ from app.models.enums import OrderStatus, ReservationStatus
 from app.models.order import Order
 from app.models.reservation import Reservation
 from app.models.sale import Sale
+from app.services import notifications
 
 logger = logging.getLogger("app.scheduler")
 
@@ -60,9 +61,13 @@ async def loop(
     while True:
         try:
             async with session_factory() as session:
-                expired = await run_once(session, await clock.now())
-                if expired:
-                    logger.info("expired %d holds", expired)
+                now = await clock.now()
+                expired = await run_once(session, now)
+                sent = await notifications.send_pending(session, now)
+                if expired or sent:
+                    logger.info(
+                        "expired %d holds, sent %d notifications", expired, sent
+                    )
         except Exception:  # a bad tick must not kill the loop
             logger.exception("scheduler tick failed")
         await asyncio.sleep(interval)

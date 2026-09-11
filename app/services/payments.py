@@ -11,6 +11,8 @@ from app.models.enums import OrderStatus, PaymentStatus, ReservationStatus
 from app.models.order import Order, Payment
 from app.models.reservation import Reservation
 from app.models.sale import Sale
+from app.models.user import User
+from app.services import notifications
 
 
 class OrderNotFoundError(Exception):
@@ -139,6 +141,13 @@ async def apply_payment_result(
                 Reservation.status == ReservationStatus.PAYING.value,
             )
             .values(status=ReservationStatus.SOLD.value)
+        )
+        # Outbox: one email per order, written in the same transaction.
+        buyer = (
+            await db.execute(select(User).where(User.id == order.user_id))
+        ).scalar_one_or_none()
+        await notifications.enqueue_order_paid(
+            db, order_id, buyer.email if buyer else "", order.amount_minor
         )
     else:  # declined — return to the cart (or clear if the sale already ended).
         sale = (
