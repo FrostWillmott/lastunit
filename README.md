@@ -33,6 +33,9 @@ make up        # docker compose: db + backend + frontend
 Frontend at http://localhost:8080, backend at http://localhost:8000 (all routes
 under `/api`). `.env` is never committed and has no default password: `make env`
 generates the secrets, and `docker compose` refuses to start without them.
+`make up` (and `make seed`) also creates a demo shop account — `shop@example.com`
+/ `shop-password`, seeded only when `APP_ENV != prod` — so you can log into the
+shop screen.
 
 ## Configuration
 
@@ -44,6 +47,8 @@ generates the secrets, and `docker compose` refuses to start without them.
 | `APP_ENV` | `dev` enables API docs, `prod` disables them (later: Secure cookies). |
 | `LOG_LEVEL` | Backend app log verbosity. |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Database role, password (generated), name. |
+| `SESSION_TTL_DAYS` | Login-cookie lifetime, in days. |
+| `SEED_SHOP_EMAIL` / `SEED_SHOP_PASSWORD` | Demo shop account (`make seed`), dev-only. |
 | `VITE_API_URL` | Backend origin the Vite dev proxy forwards `/api` to. |
 
 ## Testing
