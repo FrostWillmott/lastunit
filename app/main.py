@@ -8,7 +8,7 @@ from app.clock import Clock, PostgresClock
 from app.config import Settings
 from app.db import SessionFactory
 from app.realtime import Broadcaster, NoopBroadcaster
-from app.routers import auth, cart, health, sales
+from app.routers import auth, cart, health, orders, sales
 
 
 def create_app(
@@ -38,6 +38,7 @@ def create_app(
     app.include_router(auth.router, prefix="/api")
     app.include_router(sales.router, prefix="/api")
     app.include_router(cart.router, prefix="/api")
+    app.include_router(orders.router, prefix="/api")
     return app
 
 
