@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
 
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
@@ -9,12 +8,11 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 from app.config import Settings
+from app.models import Base
 
 config = context.config
 
-# Set in commit 4 once the declarative models exist; None is valid for the
-# empty baseline here.
-target_metadata: Any | None = None
+target_metadata = Base.metadata
 
 
 def _database_url() -> str:
