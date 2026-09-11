@@ -10,6 +10,7 @@ from app.config import Settings
 from app.db import get_db
 from app.models.enums import UserRole
 from app.models.user import User
+from app.paystub_client import PaystubClient
 from app.realtime import Broadcaster
 from app.services import auth
 
@@ -26,6 +27,10 @@ def get_clock(request: Request) -> Clock:
 
 def get_broadcaster(request: Request) -> Broadcaster:
     return cast(Broadcaster, request.app.state.broadcaster)
+
+
+def get_paystub(request: Request) -> PaystubClient:
+    return cast(PaystubClient, request.app.state.paystub)
 
 
 async def current_user(

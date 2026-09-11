@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # pytest), and matches the CI db service's app:app convention.
     database_url: str = "postgresql+asyncpg://app:app@localhost:5432/app"
     session_ttl_days: int = 30
+    # Payment stub the backend calls, and this backend's public URL for the stub's
+    # callback. Compose overrides both to the service names.
+    paystub_url: str = "http://localhost:8001"
+    public_base_url: str = "http://localhost:8000"
+    paystub_webhook_secret: str = "dev-secret"  # noqa: S105  (demo-internal, shared with the stub)
     # Demo shop account the seed creates; the reviewer logs into the shop screen
     # with these (not a production secret).
     seed_shop_email: str = "shop@example.com"
