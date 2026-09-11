@@ -83,6 +83,14 @@ async def test_shop_stats_counts() -> None:
         await _login(client, *_BUYER)
         reserved = await client.post(f"/api/sales/{sale_id}/reserve")
         reservation_id = int(reserved.json()["id"])
+
+        # While the hold is live, the dashboard counts it as in-cart.
+        await _login(client, *_SHOP)
+        mid = await client.get(f"/api/shop/sales/{sale_id}/stats")
+        assert mid.json()["in_cart"] == 1
+        assert mid.json()["available"] == 4
+
+        await _login(client, *_BUYER)
         order = await client.post(
             "/api/orders",
             json={"reservation_id": reservation_id},
@@ -102,6 +110,35 @@ async def test_shop_stats_counts() -> None:
         assert body["sold"] == 1
         assert body["in_cart"] == 0
         assert body["revenue_minor"] == 1000
+
+
+async def test_me_orders_lists_orders() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    paystub = FakePaystubClient(charge_outcome="pending")
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(paystub, clock=FrozenClock(now)) as client:
+        await _login(client, *_SHOP)
+        sale = await client.post("/api/sales", json=_sale_payload())
+        sale_id = int(sale.json()["id"])
+
+        await _login(client, *_BUYER)
+        reserved = await client.post(f"/api/sales/{sale_id}/reserve")
+        reservation_id = int(reserved.json()["id"])
+        order = await client.post(
+            "/api/orders",
+            json={"reservation_id": reservation_id},
+            headers={"Idempotency-Key": "k1"},
+        )
+        order_id = int(order.json()["id"])
+
+        orders = await client.get("/api/me/orders")
+        assert orders.status_code == 200
+        body = orders.json()
+        assert len(body) == 1
+        assert body[0]["id"] == order_id
+        assert body[0]["status"] == "pending"
 
 
 async def test_check_status_applies_result_like_webhook() -> None:

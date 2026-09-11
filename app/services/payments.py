@@ -166,5 +166,15 @@ async def apply_payment_result(
             )
             .values(status=new_status)
         )
-        # The order stays pending so the buyer can retry with a new attempt.
+        if new_status == ReservationStatus.CLEARED.value:
+            # The sale has ended and the reservation is cleared, so the order can
+            # never be paid again — cancel it instead of leaving it stuck pending.
+            await db.execute(
+                update(Order)
+                .where(
+                    Order.id == order_id,
+                    Order.status == OrderStatus.PENDING.value,
+                )
+                .values(status=OrderStatus.CANCELLED.value)
+            )
     await db.commit()
