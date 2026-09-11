@@ -4,9 +4,17 @@ from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parents[2] / "app"
 
-# Time must come from the injected Clock (SELECT now()), never from the local
-# machine or from now() baked into SQL. Any of these in app/ is a bug.
-FORBIDDEN = ("datetime.now", "func.now", "now()")
+# Time must come from the injected Clock, never from the local machine or from
+# now() baked into a SQL expression. The bare `now()` is deliberately NOT listed:
+# the Clock implements `SELECT now()` (raw Postgres), the one sanctioned source,
+# so matching it here would flag the very code the guard protects.
+FORBIDDEN = (
+    "datetime.now",  # local machine time
+    "datetime.utcnow",  # local machine time (deprecated)
+    "func.now",  # SQLAlchemy now() inside an expression
+    "time.time",  # local machine clock
+    "date.today",  # local machine date
+)
 
 
 def test_app_uses_no_local_or_sql_time_source() -> None:

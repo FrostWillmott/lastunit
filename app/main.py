@@ -11,7 +11,9 @@ from app.routers import health
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build the app with its settings injected for testability."""
     settings = settings or Settings()
-    logging.basicConfig(level=settings.log_level)
+    # App loggers (``app.*``) follow LOG_LEVEL; the process entry (uvicorn) owns
+    # the root handlers, so set the app logger instead of reconfiguring root.
+    logging.getLogger("app").setLevel(settings.log_level)
 
     expose_docs = settings.app_env != "prod"
     app = FastAPI(
@@ -22,3 +24,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.include_router(health.router, prefix="/api")
     return app
+
+
+# The ASGI entry point the Dockerfile's `uvicorn app.main:app` imports.
+app = create_app()
