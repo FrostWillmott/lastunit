@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import Clock
 from app.db import get_db
-from app.deps import get_clock, require_shop
+from app.deps import current_user, get_broadcaster, get_clock, require_shop
 from app.models.sale import Sale
-from app.services import sales as sales_service
+from app.models.user import User
+from app.realtime import Broadcaster
+from app.services import cart, sales as sales_service
 from app.services.sales import SalePhase
 
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -101,3 +103,42 @@ async def create_sale(
         ends_at_local=body.ends_at,
     )
     return _to_response(sale, await clock.now())
+
+
+class ReservationResponse(BaseModel):
+    id: int
+    sale_id: int
+    status: str
+    expires_at: datetime
+
+
+@router.post("/{sale_id}/reserve", status_code=201, response_model=ReservationResponse)
+async def reserve(
+    sale_id: int,
+    db: AsyncSession = Depends(get_db),
+    clock: Clock = Depends(get_clock),
+    broadcaster: Broadcaster = Depends(get_broadcaster),
+    user: User = Depends(current_user),
+) -> ReservationResponse:
+    try:
+        reservation = await cart.reserve(
+            db, sale_id, user.id, await clock.now(), broadcaster
+        )
+    except cart.NotStartedError:
+        raise HTTPException(
+            status_code=409, detail="sale has not started yet"
+        ) from None
+    except cart.SaleEndedError:
+        raise HTTPException(status_code=409, detail="sale has ended") from None
+    except cart.SoldOutError:
+        raise HTTPException(status_code=409, detail="sold out") from None
+    except cart.AlreadyInCartError:
+        raise HTTPException(status_code=409, detail="already in cart") from None
+    except cart.SaleNotFoundError:
+        raise HTTPException(status_code=404, detail="sale not found") from None
+    return ReservationResponse(
+        id=reservation.id,
+        sale_id=reservation.sale_id,
+        status=reservation.status,
+        expires_at=reservation.expires_at,
+    )
