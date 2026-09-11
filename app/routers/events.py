@@ -20,4 +20,8 @@ async def events(
         async for event, payload in broadcaster.subscribe():
             yield f"event: {event}\ndata: {json.dumps(payload)}\n\n"
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
+    )

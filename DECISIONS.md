@@ -10,6 +10,19 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-11 — Hold expiry is clamped to the sale's end
+A hold's `expires_at` is `min(now + 10 min, sale.ends_at)`, so it never outlives the
+sale. Side effect: paying after the sale ended is indistinguishable from paying after
+the hold lapsed (the hold lapses at or before the sale end), so the "sale has ended"
+409 is dead code and both cases surface as "hold has expired".
+
+## 2026-09-11 — Email via an outbox; sale end zeroes stock
+Order-paid and cart-cleared emails are `notifications` rows (UNIQUE kind+entity) written
+in the same transaction as the state change; the scheduler sends them through the email
+stub and marks `sent_at`. Ending a sale sets `available = 0` and clears its held
+reservations (paying ones settle later), so the stats buckets (available/sold/in-cart)
+do not sum to `quantity`.
+
 ## 2026-09-11 — Demo shop account: committed default password, seeded dev-only
 `SEED_SHOP_EMAIL`/`SEED_SHOP_PASSWORD` default to `shop@example.com`/`shop-password`
 so a reviewer can log straight into the shop screen without reading `.env`. The seed

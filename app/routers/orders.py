@@ -28,7 +28,7 @@ class OrderResponse(BaseModel):
 @router.post("", status_code=201, response_model=OrderResponse)
 async def create_order(
     body: OrderCreateRequest,
-    idempotency_key: str = Header(alias="Idempotency-Key"),
+    idempotency_key: str = Header(alias="Idempotency-Key", max_length=64),
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
     user: User = Depends(current_user),

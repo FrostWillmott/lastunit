@@ -27,6 +27,9 @@ services:
     environment:
       # Inside the compose network the DB host is the service name, not localhost.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is not set — run `make env` to create .env}@db:5432/${POSTGRES_DB:-app}
+      # The stub's address and this backend's public URL, by service name.
+      PAYSTUB_URL: http://paystub:8001
+      PUBLIC_BASE_URL: http://backend:8000
     ports:
       - "8000:8000"
     depends_on:
@@ -37,6 +40,7 @@ services:
     build:
       context: .
       dockerfile: paystub/Dockerfile
+    env_file: .env
     ports:
       - "8001:8001"
 
