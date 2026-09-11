@@ -38,3 +38,6 @@ addopts = "--cov=app --cov-fail-under=85"
 [tool.coverage.run]
 # __init__.py files are only re-exports (testing.md); migrations live outside app/.
 omit = ["*/__init__.py"]
+# sysmon (Python 3.12's sys.monitoring) traces async coroutine bodies correctly;
+# the default ctrace tracer under-counts code awaited inside FastAPI routes.
+core = "sysmon"

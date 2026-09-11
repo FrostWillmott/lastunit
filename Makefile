@@ -71,15 +71,16 @@ format:
 typecheck:
 	uv run mypy .
 
-test: test-unit test-integration
+test:
+	# Combined run: the coverage threshold is measured over unit + integration.
+	uv run pytest tests/ -v
 
 test-unit:
-	# --no-cov: unit tests run without a database, so their partial coverage of
-	# `app` is not the number the threshold (on the integration suite) enforces.
+	# --no-cov: no database needed, so the unit suite runs without coverage.
 	uv run pytest tests/unit -v --no-cov
 
 test-integration:
-	uv run pytest tests/integration -v
+	uv run pytest tests/integration -v --no-cov
 
 # ---- frontend -------------------------------------------------------------
 frontend-install:

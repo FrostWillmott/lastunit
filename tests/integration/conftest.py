@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
@@ -15,31 +14,9 @@ from alembic import command
 
 ROOT = Path(__file__).resolve().parents[2]
 
-
-class _ComposeEnv(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
-
-    postgres_user: str = "app"
-    postgres_password: str = "app"
-    postgres_db: str = "app"
-
-
-def _test_database_url() -> str:
-    if url := os.environ.get("DATABASE_URL"):
-        return url
-    env = _ComposeEnv()
-    # A separate database so the per-test TRUNCATE never touches the developer's
-    # `make up` data; CI sets DATABASE_URL to an ephemeral database instead.
-    return (
-        f"postgresql+asyncpg://{env.postgres_user}:{env.postgres_password}"
-        f"@localhost:5432/{env.postgres_db}_test"
-    )
-
-
-TEST_DATABASE_URL = _test_database_url()
-# Fix DATABASE_URL before importing the app, so app.db's engine points at the
-# test database (never the developer's default).
-os.environ.setdefault("DATABASE_URL", TEST_DATABASE_URL)
+# Resolved by the root conftest (tests/conftest.py), which sets DATABASE_URL
+# before any test imports app.db.
+TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 async def _ensure_database_exists() -> None:
