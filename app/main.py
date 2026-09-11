@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app import scheduler
 from app.clock import Clock, PostgresClock
 from app.config import Settings
 from app.db import SessionFactory
@@ -17,6 +21,7 @@ def create_app(
     clock: Clock | None = None,
     broadcaster: Broadcaster | None = None,
     paystub_client: PaystubClient | None = None,
+    scheduler_interval: float = 1.0,
 ) -> FastAPI:
     """Build the app with its settings, clock and broadcaster injected for tests."""
     settings = settings or Settings()
@@ -27,12 +32,25 @@ def create_app(
     # the root handlers, so set the app logger instead of reconfiguring root.
     logging.getLogger("app").setLevel(settings.log_level)
 
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        task = asyncio.create_task(
+            scheduler.loop(clock, SessionFactory, scheduler_interval)
+        )
+        yield
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
     expose_docs = settings.app_env != "prod"
     app = FastAPI(
         title="lastunit",
         docs_url="/docs" if expose_docs else None,
         redoc_url=None,
         openapi_url="/openapi.json" if expose_docs else None,
+        lifespan=lifespan,
     )
     app.state.settings = settings
     app.state.clock = clock
