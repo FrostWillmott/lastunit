@@ -93,7 +93,6 @@ test. As of this scaffold no product behaviour is implemented, so every row is
 
 ## Next steps
 
-Follow `docs/plan.md` — stage 2 is auth (register/login/logout, server-side
-sessions, then the shop seed). Planned but not in scope yet: Postgres
-`LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment timeout, automatic
-reconciliation with the payment stub, and pagination.
+Follow `docs/plan.md` — stage 4 is orders and the payment stub. Planned but not
+in scope yet: Postgres `LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment
+timeout, automatic reconciliation with the payment stub, and pagination.

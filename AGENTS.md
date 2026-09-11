@@ -17,11 +17,11 @@ its "Ожидаемое поведение" bullets are the acceptance criteria.
 on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
-Status: stage 0 done. The backend is an `app/` package (`app/main.py` with a
-`create_app()` factory and the module-level `app` uvicorn imports, `app/config.py`
-Settings, `GET /api/health` under `/api`) with `tests/unit/` (health,
-env-contract, no-local-time) and dev deps (pytest, pytest-asyncio, mypy,
-pytest-cov). No models, routes, DB or migrations yet — that is stage 1.
+Status: stages 0-3 done. The backend is an `app/` package (`app/main.py` with a
+`create_app(settings, clock, broadcaster)` factory and `GET /api/health`) with the
+domain models + migrations, auth (server-side sessions, argon2id), sales
+(create/list with server time + phase), and cart (reserve/release). Payments,
+outbox, scheduler, realtime SSE and the frontend remain — see `docs/plan.md`.
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
