@@ -37,9 +37,14 @@ class InProcessBroadcaster:
         for queue in list(self._subscribers):
             queue.put_nowait((event, payload))
 
-    async def subscribe(self) -> AsyncIterator[Event]:
+    def subscribe(self) -> AsyncIterator[Event]:
+        # Register eagerly so a publish that happens right after subscribe() is
+        # still delivered to this subscriber.
         queue: asyncio.Queue[Event] = asyncio.Queue()
         self._subscribers.add(queue)
+        return self._iterate(queue)
+
+    async def _iterate(self, queue: asyncio.Queue[Event]) -> AsyncIterator[Event]:
         try:
             while True:
                 yield await queue.get()
