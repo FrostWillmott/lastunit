@@ -65,7 +65,9 @@ typecheck:
 test: test-unit test-integration
 
 test-unit:
-	uv run pytest tests/unit -v
+	# --no-cov: unit tests run without a database, so their partial coverage of
+	# `app` is not the number the threshold (on the integration suite) enforces.
+	uv run pytest tests/unit -v --no-cov
 
 test-integration:
 	uv run pytest tests/integration -v
