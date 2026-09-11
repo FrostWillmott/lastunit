@@ -24,6 +24,11 @@ class CartItemResponse(BaseModel):
     expires_at: datetime
 
 
+class CartResponse(BaseModel):
+    server_now: datetime
+    items: list[CartItemResponse]
+
+
 @router.delete("/reservations/{reservation_id}", status_code=204)
 async def release(
     reservation_id: int,
@@ -33,32 +38,32 @@ async def release(
     user: User = Depends(current_user),
 ) -> Response:
     try:
-        sale_id, available = await cart.release(
-            db, reservation_id, user.id, await clock.now()
-        )
+        await cart.release(db, reservation_id, user.id, await clock.now(), broadcaster)
     except cart.ReservationNotFoundError:
         raise HTTPException(status_code=404, detail="reservation not found") from None
     except cart.NotHeldError:
         raise HTTPException(status_code=409, detail="reservation is not held") from None
-    await broadcaster.publish(
-        "stock_changed", {"sale_id": sale_id, "available": available}
-    )
     return Response(status_code=204)
 
 
-@router.get("/me/cart", response_model=list[CartItemResponse])
+@router.get("/me/cart", response_model=CartResponse)
 async def view_cart(
     db: AsyncSession = Depends(get_db),
+    clock: Clock = Depends(get_clock),
     user: User = Depends(current_user),
-) -> list[CartItemResponse]:
-    items = await cart.list_cart(db, user.id)
-    return [
-        CartItemResponse(
-            reservation_id=reservation.id,
-            sale_id=sale.id,
-            title=sale.title,
-            price_minor=sale.price_minor,
-            expires_at=reservation.expires_at,
-        )
-        for reservation, sale in items
-    ]
+) -> CartResponse:
+    now = await clock.now()
+    items = await cart.list_cart(db, user.id, now)
+    return CartResponse(
+        server_now=now,
+        items=[
+            CartItemResponse(
+                reservation_id=reservation.id,
+                sale_id=sale.id,
+                title=sale.title,
+                price_minor=sale.price_minor,
+                expires_at=reservation.expires_at,
+            )
+            for reservation, sale in items
+        ],
+    )

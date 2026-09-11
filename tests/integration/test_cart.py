@@ -13,7 +13,7 @@ from app.models.enums import UserRole
 from app.models.user import User
 from app.realtime import NoopBroadcaster
 from app.services.auth import ensure_user
-from app.services.cart import SoldOutError, reserve
+from app.services.cart import AlreadyInCartError, SoldOutError, reserve
 from app.services.sales import create_sale as create_sale_service
 
 _SHOP = ("shop@example.com", "shop-password")
@@ -74,6 +74,24 @@ async def test_reserve_before_start_rejected() -> None:
         await _login(client, *_BUYER)
         response = await client.post(f"/api/sales/{sale_id}/reserve")
         assert response.status_code == 409
+        assert response.json()["detail"] == "sale has not started yet"
+
+
+async def test_reserve_at_start_allowed() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+    await _ensure_user(*_BUYER, UserRole.BUYER.value)
+
+    async with _client(clock=FrozenClock(now)) as client:
+        await _login(client, *_SHOP)
+        # The sale starts exactly at `now`; the boundary is inclusive.
+        sale_id = await _create_sale(
+            client, "2026-06-01T12:00:00", "2026-06-01T13:00:00"
+        )
+
+        await _login(client, *_BUYER)
+        response = await client.post(f"/api/sales/{sale_id}/reserve")
+        assert response.status_code == 201, response.text
 
 
 async def test_reserve_holds_a_unit_and_decrements_available() -> None:
@@ -111,6 +129,35 @@ async def test_reserve_same_buyer_twice_is_409() -> None:
         assert (await client.post(f"/api/sales/{sale_id}/reserve")).status_code == 201
         second = await client.post(f"/api/sales/{sale_id}/reserve")
         assert second.status_code == 409
+        assert second.json()["detail"] == "already in cart"
+
+
+async def test_reserve_same_buyer_concurrent_one_wins() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    async with SessionFactory() as session:
+        sale = await create_sale_service(
+            session,
+            title="Dup",
+            price_minor=1000,
+            quantity=5,
+            tz_name="UTC",
+            starts_at_local=datetime(2026, 6, 1, 11, 0),
+            ends_at_local=datetime(2026, 6, 1, 13, 0),
+        )
+        sale_id = sale.id
+    buyer = await _ensure_user("dup@example.com", "pw", UserRole.BUYER.value)
+    broadcaster = NoopBroadcaster()
+
+    async def try_reserve() -> str:
+        async with SessionFactory() as session:
+            try:
+                await reserve(session, sale_id, buyer, now, broadcaster)
+                return "won"
+            except AlreadyInCartError:
+                return "already in cart"
+
+    results = await asyncio.gather(try_reserve(), try_reserve())
+    assert sorted(results) == ["already in cart", "won"]
 
 
 async def test_reserve_requires_login() -> None:
@@ -196,7 +243,7 @@ async def test_view_cart_lists_held_reservation() -> None:
 
         cart_resp = await client.get("/api/me/cart")
         assert cart_resp.status_code == 200
-        items = cart_resp.json()
+        items = cart_resp.json()["items"]
         assert len(items) == 1
         assert items[0]["sale_id"] == sale_id
         assert items[0]["title"] == "Flash sale"

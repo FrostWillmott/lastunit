@@ -66,14 +66,13 @@ hit the real Postgres.
 ## State
 
 Every "Ожидаемое поведение" bullet in `docs/acceptance.md` maps to one named
-test. As of this scaffold no product behaviour is implemented, so every row is
-"not proven".
+test. Rows are updated as each stage lands.
 
 | # | Expected behaviour | Proving test | Status |
 |---|---|---|---|
-| 1 | No purchase before start; opens for everyone at start | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed` | not proven |
+| 1 | No purchase before start; opens for everyone at start | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed` | partially proven |
 | 2 | Stock changes live on every open client | `test_stock_event_reaches_second_client`, `test_sse_smoke_real_server` | not proven |
-| 3 | Last unit sells to one of two buyers | `test_last_unit_two_buyers_one_wins` | not proven |
+| 3 | Last unit sells to one of two buyers | `test_last_unit_two_buyers_one_wins` | proven |
 | 4 | Hold expires after 10 min, stock returns, seen live | `test_hold_expires_returns_stock`, `test_hold_expiry_broadcasts` | not proven |
 | 5 | Payment started before expiry completes even if the stub answers late | `test_payment_started_before_expiry_completes_after` | not proven |
 | 6 | Hung payment keeps the order pending; resolves later | `test_hung_payment_keeps_stock`, `test_hung_payment_resolves_via_webhook`, `test_paystub_timeout_keeps_order_pending` | not proven |
