@@ -15,6 +15,7 @@ async function logout() {
   <header class="bar">
     <RouterLink to="/" class="brand">lastunit</RouterLink>
     <span v-if="auth.isAuthenticated" class="who">
+      <RouterLink to="/cart">Cart</RouterLink>
       {{ auth.user?.email }}
       <button type="button" @click="logout">Log out</button>
     </span>
