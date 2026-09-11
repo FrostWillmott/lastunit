@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from pwdlib import PasswordHash
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,6 +56,35 @@ async def register(db: AsyncSession, email: str, password: str) -> User:
         await db.rollback()
         raise EmailTakenError from None
     return user
+
+
+async def ensure_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+    role: str,
+) -> None:
+    """Create or reconcile a user by email (atomic, idempotent, lowercases).
+
+    Used by the seed: an existing row's role and password_hash are updated, so a
+    buyer who registered the shop email first is upgraded, and a capitalized or
+    whitespace-padded email is normalized to satisfy ``CHECK (email = lower(email))``.
+    """
+    normalized = email.strip().lower()
+    statement = pg_insert(User).values(
+        email=normalized,
+        password_hash=hash_password(password),
+        role=role,
+    )
+    statement = statement.on_conflict_do_update(
+        index_elements=[User.email],
+        set_={
+            "password_hash": statement.excluded.password_hash,
+            "role": statement.excluded.role,
+        },
+    )
+    await db.execute(statement)
+    await db.commit()
 
 
 async def login(

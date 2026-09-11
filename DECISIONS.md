@@ -10,6 +10,15 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-11 — Demo shop account: committed default password, seeded dev-only
+`SEED_SHOP_EMAIL`/`SEED_SHOP_PASSWORD` default to `shop@example.com`/`shop-password`
+so a reviewer can log straight into the shop screen without reading `.env`. The seed
+runs only when `APP_ENV != "prod"` and uses an atomic upsert (`INSERT ... ON CONFLICT
+(email) DO UPDATE`) so it is idempotent, normalizes the email, and upgrades a buyer
+who registered the shop email first. This deliberately qualifies the earlier "no
+default secrets" entry — the shop credential is a demo convenience, not a production
+secret.
+
 ## 2026-09-11 — Domain schema: invariants live in constraints
 The first migration creates users, sessions, sales, reservations, orders,
 payments and notifications. Guarantees are schema constraints, not app checks:

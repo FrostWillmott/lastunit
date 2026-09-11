@@ -44,11 +44,13 @@ env:
 install: env frontend-install
 	uv sync --all-extras
 
-# Create the demo shop user from SEED_SHOP_* in .env (idempotent). Like the
-# integration conftest, derive DATABASE_URL from POSTGRES_* for the localhost DB.
-seed:
-	@set -a && . ./.env && set +a && \
-	DATABASE_URL="postgresql+asyncpg://$${POSTGRES_USER:-app}:$${POSTGRES_PASSWORD}@localhost:5432/$${POSTGRES_DB:-app}" \
+# Create the demo shop user from SEED_SHOP_* in .env (idempotent). Derive
+# DATABASE_URL from POSTGRES_* only when it is not already exported.
+seed: env
+	@set -a && . ./.env && set +a; \
+	if [ -z "$${DATABASE_URL}" ]; then \
+	  export DATABASE_URL="postgresql+asyncpg://$${POSTGRES_USER:-app}:$${POSTGRES_PASSWORD}@localhost:5432/$${POSTGRES_DB:-app}"; \
+	fi; \
 	uv run python -m app.seed
 
 install-hooks:
