@@ -27,8 +27,12 @@ export const useCartStore = defineStore('cart', () => {
     return checkouts.value[reservationId]
   }
 
+  let fetchSeq = 0
+
   async function fetchCart(): Promise<void> {
+    const seq = ++fetchSeq
     const data = await api.cart()
+    if (seq !== fetchSeq) return
     cart.value = data
     serverOffset.value =
       data.items.length > 0 ? Date.now() - Date.parse(data.server_now) : null

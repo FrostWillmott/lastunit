@@ -80,7 +80,7 @@ test. Rows are updated as each stage lands.
 | 7 | Double "pay" is one order, one charge | `test_double_pay_same_key_one_order`, `test_double_pay_calls_paystub_once` | proven |
 | 8 | Exactly one order email | `test_order_email_sent_exactly_once` | proven |
 | 9 | Sale end clears holds, removes unsold, notifies owners | `test_sale_end_clears_holds_and_notifies` | proven |
-| T11 | Two open tabs stay in sync | `sales.test.ts` `applies two successive stock events and reflects each` | proven |
+| T11 | Two open tabs stay in sync | `test_stock_event_reaches_second_client` (2 clients) + `useRealtime.test.ts` fan-out + `sales.test.ts` `applies two successive stock events and reflects each` | proven |
 
 ## Decisions worth knowing
 

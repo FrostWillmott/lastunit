@@ -10,6 +10,16 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-11 — Realtime uses native EventSource, not VueUse useEventSource
+`useEventSource` exposes only "latest value" refs (its `event`/`data` are shallowRefs),
+so watching the event name drops two consecutive same-named events — two `stock_changed`
+in a row deliver one callback. `useRealtime` therefore opens a native `EventSource` and
+fans out via `addEventListener` (fires per event), relying on the browser's built-in
+auto-reconnect and refetching on reopen. The "two tabs" acceptance bullet is proven by
+the backend two-client integration test plus the frontend fan-out test and the
+store-applies-two-events test — a store unit test that mocks the realtime composable
+away does not by itself certify it.
+
 ## 2026-09-11 — Hold expiry is clamped to the sale's end
 A hold's `expires_at` is `min(now + 10 min, sale.ends_at)`, so it never outlives the
 sale. Side effect for the payment transition: paying after the sale ended is

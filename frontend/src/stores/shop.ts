@@ -9,13 +9,24 @@ export const useShopStore = defineStore('shop', () => {
   const stats = ref<SaleStats | null>(null)
   const selectedSaleId = ref<number | null>(null)
 
+  // Monotonic guards: a burst of events starts concurrent refetches, and a
+  // slower, older response must not overwrite a newer one.
+  let salesSeq = 0
+  let statsSeq = 0
+
   async function fetchSales(): Promise<void> {
-    sales.value = await api.listSales()
+    const seq = ++salesSeq
+    const list = await api.listSales()
+    if (seq !== salesSeq) return
+    sales.value = list
   }
 
   async function fetchStats(saleId: number): Promise<void> {
+    const seq = ++statsSeq
     selectedSaleId.value = saleId
-    stats.value = await api.saleStats(saleId)
+    const data = await api.saleStats(saleId)
+    if (seq !== statsSeq) return
+    stats.value = data
   }
 
   async function createSale(input: SaleCreateInput): Promise<Sale> {

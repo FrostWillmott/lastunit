@@ -129,6 +129,41 @@ describe('sales store', () => {
     expect(fetch).toHaveBeenCalledTimes(3)
   })
 
+  it('ignores a stale response that resolves after a newer one', async () => {
+    type FakeResponse = { ok: boolean; status: number; json: () => Promise<unknown> }
+    let resolveFirst!: (v: FakeResponse) => void
+    let resolveSecond!: (v: FakeResponse) => void
+    const first = new Promise<FakeResponse>((resolve) => {
+      resolveFirst = resolve
+    })
+    const second = new Promise<FakeResponse>((resolve) => {
+      resolveSecond = resolve
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockReturnValueOnce(first).mockReturnValueOnce(second),
+    )
+    const store = useSalesStore()
+
+    const older = store.fetchSales()
+    const newer = store.fetchSales()
+
+    resolveSecond({
+      ok: true,
+      status: 200,
+      json: async () => [{ ...SALE, available: 3 }],
+    })
+    await newer
+    resolveFirst({
+      ok: true,
+      status: 200,
+      json: async () => [{ ...SALE, available: 5 }],
+    })
+    await older
+
+    expect(store.sales[0]?.available).toBe(3)
+  })
+
   it('applyEvent ignores unrelated events', async () => {
     const fetch = jsonFetch(200, [SALE])
     vi.stubGlobal('fetch', fetch)
