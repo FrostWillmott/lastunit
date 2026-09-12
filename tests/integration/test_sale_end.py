@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import func, select
 
+from app.clock import FrozenClock
 from app.db import SessionFactory
 from app.models.enums import OrderStatus, ReservationStatus, SaleStatus, UserRole
 from app.models.notification import Notification
@@ -12,7 +13,7 @@ from app.models.reservation import Reservation
 from app.models.sale import Sale
 from app.models.user import User
 from app.realtime import NoopBroadcaster
-from app.scheduler import end_ended_sales
+from app.scheduler import end_ended_sales, tick
 from app.services.auth import ensure_user
 from app.services.cart import reserve
 from app.services.notifications import CART_CLEARED
@@ -22,7 +23,7 @@ from app.services.sales import create_sale
 
 
 async def test_sale_end_clears_holds_and_notifies() -> None:
-    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    now = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
 
     async with SessionFactory() as session:
         await ensure_user(session, "buyer@example.com", "pw", UserRole.BUYER.value)
@@ -36,16 +37,22 @@ async def test_sale_end_clears_holds_and_notifies() -> None:
             quantity=1,
             tz_name="UTC",
             starts_at_local=datetime(2026, 6, 1, 11, 0),
-            ends_at_local=datetime(2026, 6, 1, 13, 0),
+            ends_at_local=datetime(2026, 6, 1, 12, 5),
         )
         sale_id = sale.id
         reservation = await reserve(session, sale.id, buyer.id, now, NoopBroadcaster())
         await create_order(session, reservation.id, buyer.id, "key-1", now)
 
-    # The sale ends at 13:00; run the cleanup at 13:01.
-    async with SessionFactory() as session:
-        ended = await end_ended_sales(session, now + timedelta(minutes=61))
-        assert ended == 1
+    # The hold is clamped to the sale end (12:05). Run one full scheduler pass at
+    # exactly that instant — the loop's own sequence, not one function in isolation.
+    expired, ended, sent = await tick(
+        FrozenClock(datetime(2026, 6, 1, 12, 5, tzinfo=UTC)),
+        SessionFactory,
+        NoopBroadcaster(),
+    )
+    assert expired == 0
+    assert ended == 1
+    assert sent == 1
 
     async with SessionFactory() as session:
         refreshed_sale = await session.scalar(select(Sale).where(Sale.id == sale_id))
