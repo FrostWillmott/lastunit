@@ -32,3 +32,15 @@
 - `6356544` feat(frontend): shop dashboard with stats and payment check
 - `42d08fa` test(frontend): store applies two realtime events
 - `ff4ffdd` fix(frontend): deliver every SSE event, not just name changes
+
+## Примечание к экспорту (добавлено 12.09 перед сдачей)
+
+Первая версия этого файла была снята, пока сессия ещё шла, и обрывалась на
+1062-й строке. Теперь здесь полный транскрипт (1143 строки).
+
+В хвосте, который в первую выгрузку не попал, агент напечатал содержимое `.env`
+в лог. Три значения (`POSTGRES_PASSWORD`, `PAYSTUB_WEBHOOK_SECRET`) заменены на
+`<redacted-dead-local-secret>` — 97 вхождений. Значения мёртвые, локальные, в
+git не попадали и с текущим `.env` не совпадают. Digest образов и SHA экшенов
+сохранены. Подробности и проверка — в `README.md` каталога, правило, которое
+это предотвращает, — в `.claude/rules/config-hygiene.md`.

@@ -39,3 +39,8 @@ Email пользователя в экспорте заменён на `[user em
 Этап 0, коммит 1 по `docs/plan.md`: пакет `app/` с `create_app(clock, broadcaster)`,
 Settings только с `APP_ENV` и `LOG_LEVEL`, `/api/health`, dev-зависимости,
 `test_config_env_contract`, `test_no_local_time`. Локально нужен Node 24.
+
+---
+
+*Экспорт дополнен 12.09 перед сдачей: файл был снят до конца сессии и теперь
+содержит её целиком. Детали и проверка на секреты — `README.md` каталога.*
