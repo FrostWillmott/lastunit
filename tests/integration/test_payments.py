@@ -7,7 +7,8 @@ import json
 from datetime import UTC, datetime
 
 import httpx
-from sqlalchemy import select
+import pytest
+from sqlalchemy import select, update
 
 from app.clock import Clock, FrozenClock
 from app.config import Settings
@@ -17,8 +18,14 @@ from app.models.enums import OrderStatus, PaymentStatus, ReservationStatus, User
 from app.models.order import Order, Payment
 from app.models.reservation import Reservation
 from app.models.sale import Sale
+from app.models.user import User
 from app.paystub_client import PaystubClient
+from app.realtime import NoopBroadcaster
 from app.services.auth import ensure_user
+from app.services.cart import reserve
+from app.services.orders import create_order
+from app.services.payments import PaymentAlreadyPendingError, start_payment
+from app.services.sales import create_sale
 
 _SHOP = ("shop@example.com", "shop-password")
 _BUYER = ("buyer@example.com", "buyer-password")
@@ -276,3 +283,57 @@ async def test_webhook_rejects_non_ascii_signature() -> None:
             headers={b"X-Webhook-Signature": "café".encode("latin-1")},
         )
         assert response.status_code == 401
+
+
+async def test_start_payment_with_stale_hold_in_session_reports_pending_payment() -> (
+    None
+):
+    """The loser of a double-pay race must hear "payment already in progress".
+
+    Reproduces the race deterministically rather than relying on interleaving:
+    session ``a`` loads the reservation while it is still ``held`` (exactly what
+    the loser's SELECT does before the winner commits), then another session
+    flips it to ``paying``. ``start_payment``'s guarded UPDATE then matches zero
+    rows and its re-read must see the committed status, not the stale instance
+    its own identity map already holds.
+    """
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    broadcaster = NoopBroadcaster()
+
+    async with SessionFactory() as session:
+        await ensure_user(session, *_BUYER, UserRole.BUYER.value)
+        buyer = (
+            await session.execute(select(User).where(User.email == _BUYER[0]))
+        ).scalar_one()
+        sale = await create_sale(
+            session,
+            title="Flash sale",
+            price_minor=1000,
+            quantity=1,
+            tz_name="UTC",
+            starts_at_local=datetime(2026, 6, 1, 11, 0),
+            ends_at_local=datetime(2026, 6, 1, 13, 0),
+        )
+        reservation = await reserve(session, sale.id, buyer.id, now, broadcaster)
+        order = await create_order(session, reservation.id, buyer.id, "key", now)
+        order_id, buyer_id, reservation_id = order.id, buyer.id, reservation.id
+
+    async with SessionFactory() as loser:
+        # The loser reads the hold while it is still live.
+        held = (
+            await loser.execute(
+                select(Reservation).where(Reservation.id == reservation_id)
+            )
+        ).scalar_one()
+        assert held.status == ReservationStatus.HELD.value
+
+        async with SessionFactory() as winner:
+            await winner.execute(
+                update(Reservation)
+                .where(Reservation.id == reservation_id)
+                .values(status=ReservationStatus.PAYING.value)
+            )
+            await winner.commit()
+
+        with pytest.raises(PaymentAlreadyPendingError):
+            await start_payment(loser, order_id, buyer_id, now)
