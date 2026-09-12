@@ -57,26 +57,32 @@ describe('orders store', () => {
     expect(store.orders[0]?.status).toBe('paid')
   })
 
-  it('applyEvent ignores unrelated events', async () => {
-    const fetch = vi.fn().mockResolvedValue(ok(200, [ORDER]))
+  it('applyEvent refetches on a cancellation carried by stock_changed', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(ok(200, [ORDER]))
+      .mockResolvedValueOnce(ok(200, [{ ...ORDER, status: 'cancelled' }]))
     vi.stubGlobal('fetch', fetch)
     const store = useOrdersStore()
     await store.fetchOrders()
 
     await store.applyEvent('stock_changed')
 
-    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(store.orders[0]?.status).toBe('cancelled')
   })
 
-  it('bindRealtime subscribes to order_status and reconnect, once', () => {
+  it('bindRealtime subscribes to all events and reconnect, once', () => {
     const store = useOrdersStore()
 
     store.bindRealtime()
     store.bindRealtime()
 
     expect(realtime.on).toHaveBeenCalledWith('order_status', expect.any(Function))
+    expect(realtime.on).toHaveBeenCalledWith('stock_changed', expect.any(Function))
+    expect(realtime.on).toHaveBeenCalledWith('sale_status', expect.any(Function))
     expect(realtime.onReconnect).toHaveBeenCalledWith(expect.any(Function))
-    expect(realtime.on).toHaveBeenCalledTimes(1)
+    expect(realtime.on).toHaveBeenCalledTimes(3)
     expect(realtime.onReconnect).toHaveBeenCalledTimes(1)
   })
 })

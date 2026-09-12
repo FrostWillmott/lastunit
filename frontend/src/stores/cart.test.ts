@@ -38,6 +38,7 @@ function ok(status: number, body: unknown) {
 
 beforeEach(() => {
   setActivePinia(createPinia())
+  sessionStorage.clear()
   realtime.on.mockClear()
   realtime.onReconnect.mockClear()
 })
@@ -146,7 +147,7 @@ describe('cart store', () => {
     expect(store.cart?.items).toHaveLength(0)
   })
 
-  it('bindRealtime subscribes to order/stock events and reconnect, once', () => {
+  it('bindRealtime subscribes to order/stock/sale events and reconnect, once', () => {
     const store = useCartStore()
 
     store.bindRealtime()
@@ -154,8 +155,44 @@ describe('cart store', () => {
 
     expect(realtime.on).toHaveBeenCalledWith('order_status', expect.any(Function))
     expect(realtime.on).toHaveBeenCalledWith('stock_changed', expect.any(Function))
+    expect(realtime.on).toHaveBeenCalledWith('sale_status', expect.any(Function))
     expect(realtime.onReconnect).toHaveBeenCalledWith(expect.any(Function))
-    expect(realtime.on).toHaveBeenCalledTimes(2)
+    expect(realtime.on).toHaveBeenCalledTimes(3)
     expect(realtime.onReconnect).toHaveBeenCalledTimes(1)
+  })
+
+  it('a reloaded checkout reuses the persisted order id', async () => {
+    sessionStorage.setItem(
+      'lastunit:checkouts',
+      JSON.stringify({ 1: { key: 'persisted-key', orderId: 10 } }),
+    )
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(ok(200, { status: 'approved' }))
+      .mockResolvedValueOnce(ok(200, { server_now: '2026-01-01T00:30:00Z', items: [] }))
+    vi.stubGlobal('fetch', fetch)
+    const store = useCartStore()
+
+    await store.pay(1, '4242 0000')
+
+    expect(store.checkoutOf(1)?.outcome).toBe('approved')
+    expect(fetch).not.toHaveBeenCalledWith(
+      '/api/orders',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
+
+  it('applyEvent refetches on sale_status', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(ok(200, CART))
+      .mockResolvedValueOnce(ok(200, { server_now: '2026-01-01T00:30:00Z', items: [] }))
+    vi.stubGlobal('fetch', fetch)
+    const store = useCartStore()
+    await store.fetchCart()
+
+    await store.applyEvent('sale_status')
+
+    expect(fetch).toHaveBeenCalledTimes(2)
   })
 })
