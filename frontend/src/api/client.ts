@@ -46,10 +46,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
+interface ValidationError {
+  loc: (string | number)[]
+  msg: string
+  type: string
+}
+
 async function detail(res: Response): Promise<string> {
   try {
-    const body = (await res.json()) as { detail?: unknown }
+    const body = (await res.json()) as { detail?: string | ValidationError[] }
     if (typeof body.detail === 'string') return body.detail
+    // FastAPI validation errors arrive as an array of { loc, msg, type }.
+    if (Array.isArray(body.detail)) {
+      return body.detail.map((error) => error.msg).join('; ')
+    }
   } catch {
     // Non-JSON error body (proxy/nginx 502 etc.) — fall through to the status.
   }

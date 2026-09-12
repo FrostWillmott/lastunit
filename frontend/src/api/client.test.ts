@@ -45,6 +45,25 @@ describe('api client', () => {
     })
   })
 
+  it('flattens a FastAPI validation error array into one message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch(422, {
+        detail: [
+          {
+            loc: ['body', 'password'],
+            msg: 'String should have at least 8 characters',
+            type: 'string_too_short',
+          },
+        ],
+      }),
+    )
+    await expect(api.register('a@b.c', 'short')).rejects.toMatchObject({
+      status: 422,
+      message: 'String should have at least 8 characters',
+    })
+  })
+
   it('falls back to the status text when the error body is not JSON', async () => {
     vi.stubGlobal(
       'fetch',
