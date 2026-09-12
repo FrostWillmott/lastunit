@@ -39,6 +39,14 @@ The template already ships the files; the steps are what to fill in and verify.
    ```
    Commit `uv.lock`; CI installs with `uv sync --locked`.
 
+   Every tool a Makefile target invokes through `uv run` goes in
+   `[dependency-groups] dev` — ruff included. `uv run` falls back to PATH, so an
+   undeclared tool works on the machine that has it globally and dies in CI with
+   `Failed to spawn: <tool>`. Pin the linter to the exact version
+   `.pre-commit-config.yaml` uses, so the hook and `make lint` cannot disagree.
+   Pin uv once, as `[tool.uv] required-version`, and let CI read it
+   (`version-file: pyproject.toml`) instead of restating the number.
+
 2. **Frontend toolchain** — `frontend/` in the template is a verified Vite + Vue 3 +
    TypeScript skeleton: ESLint 9 with `eslint-plugin-vue` (template rules included),
    Prettier, `vue-tsc`, Vitest + `@vue/test-utils` (+ coverage threshold in
@@ -47,6 +55,14 @@ The template already ships the files; the steps are what to fill in and verify.
    frontend -- --template react-ts` and port `package.json` scripts, `.prettierrc`,
    `vite.config.ts` (test + proxy + `sourcemap: false`) and the `App` test over; drop
    `frontend-vue.md` from `.claude/rules/`.
+
+   Pin Node once: `.nvmrc` in the **repo root** (so `nvm install` works from
+   where the user already is), the same floor in `engines`, and
+   `engine-strict=true` in `frontend/.npmrc` so `npm ci` refuses an old Node up
+   front instead of failing later inside eslint or vitest. Check the floor
+   against the lockfile, not the latest major — a transitive dependency can
+   require a specific patch, and `engine-strict` enforces dependencies' ranges
+   too.
 
 3. **Pre-commit** — `.pre-commit-config.yaml` ships ruff, mypy, gitleaks and a
    frontend lint hook scoped to `frontend/`. Run `pre-commit autoupdate`, then
@@ -73,10 +89,40 @@ The template already ships the files; the steps are what to fill in and verify.
    refreshes those SHA pins, image digests and both lockfiles weekly — it maintains
    the pins, the `audit` job is still the gate.
 
+   `ci-pipeline.md` is the binding module; the four mistakes worth naming here,
+   because each shipped from this template and each survived a local `make check`:
+   - **No `hashFiles()` in a job-level `if`.** It reads the workspace, which does
+     not exist when job-level expressions are evaluated, so GitHub rejects the
+     whole file: the run ends in 0s with no jobs, no logs, and a plain `failure`
+     in `gh run list`. Do not guard a job on a file the repo contains anyway.
+   - **Each job calls a target its own setup satisfies.** A Python-only job must
+     not call `make check` when that target also runs `frontend-check`; give it
+     `make lint format typecheck test`, or add Node and `npm ci`.
+   - **Steps call project commands** (`make audit`, `make frontend-check`), not
+     hand-copied command lists that drift as the Makefile grows.
+   - **One source per version**: `node-version-file: .nvmrc` in every job,
+     `version-file: pyproject.toml` for uv. Never a literal version beside a
+     file that already states it.
+
+   Add `concurrency` keyed on the ref with `cancel-in-progress: true`, and
+   `timeout-minutes` on every job (the default is six hours).
+
+   Lint before pushing — YAML parsing does not catch any of the above:
+   ```bash
+   actionlint .github/workflows/*.yml     # brew install actionlint
+   ```
+
 8. **Repository settings (GitHub)** — files can't do these; do them right after the
    first push, they are what a CI/CD audit scores first:
-   - Push the scaffold *before* feature code so Actions registers a green run on
-     `main` immediately.
+   - Push the scaffold *before* feature code, then **confirm the run is green by
+     command** — `gh run watch "$(gh run list -L1 --json databaseId --jq
+     '.[0].databaseId')" --exit-status` — and check that every expected job name
+     appears in `gh run view --json jobs --jq '.jobs[].name'`. A job missing from
+     the run counts as failed, not passed; an unobserved pipeline counts as no
+     pipeline. Do not record a green run as a deliverable without this output:
+     that claim went unchecked in one project for 33 consecutive failed runs.
+   - Branch protection cannot require a status check that has never reported, so
+     the confirmed run above has to come first.
    - Branch protection on `main` (Settings → Branches, or `gh api`): require status
      checks `backend`, `frontend`, `audit`, `docker`; require PRs (self-merge is
      fine for a solo repo); block force-push.
