@@ -10,6 +10,14 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — A decline after the sale end clears the reservation and cancels the order
+Accepted in commit `2dae4ad`, recorded late. Once a sale has ended its
+`available` is already 0, so a payment declined after `ends_at` has no unit to
+return: the reservation is cleared (not `held`) and the order is cancelled with a
+cart-cleared notice, mirroring the sale-end cleanup path. This supersedes the
+2026-09-10 "Declined payment keeps the reservation and the order" entry, which
+held only while the sale was still live.
+
 ## 2026-09-12 — Clock reads now() through the request's own session
 `PostgresClock.now()` used to open a second pooled connection per call, so a
 burst of authenticated requests (each pinning its request session's connection
@@ -27,8 +35,9 @@ idempotent by `sales.title` and re-anchored: if the previous demo sale's window
 has passed, a fresh one is created, so a later start still shows a live sale and
 ended demo sales accumulate as terminal rows. Keying on the user-writable title
 (no natural key, no UNIQUE constraint) is a deliberate demo-only simplification —
-seeding runs once at startup in the single-process topology, so the check-then-act
-race is unreachable, and the demo sale is not an application invariant worth a
+the check-then-act is serialized with a `pg_advisory_xact_lock`, so concurrent
+seeds (a manual `make seed` during startup, or two scaled workers) can't create
+two live demo sales, and the demo sale is not an application invariant worth a
 migration. A shop creating a sale literally named "Demo flash sale" would suppress
 re-seeding.
 
@@ -80,7 +89,8 @@ UNIQUE `(kind, entity_id)` on notifications. Statuses are string enums in
 ## 2026-09-11 — Sale times are absolute, in the shop's IANA zone
 The shop creates a sale with a wall-clock start/end plus a `timezone` (IANA) column
 on the sale; the backend parses the local time with `zoneinfo.ZoneInfo`, stores
-`timestamptz` UTC, and renders the times back in that zone. This satisfies the
+`timestamptz` UTC, and returns them in UTC alongside the `timezone` field, for
+the client to render in the shop's zone. This satisfies the
 `transactional-web` [MUST] that a zone be explicit, without forcing a zone on
 buyers — buyers only ever see a `server_now`-offset countdown.
 
