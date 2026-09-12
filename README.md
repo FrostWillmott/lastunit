@@ -22,11 +22,10 @@ Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
 
 - Docker with compose — for the database and the local stack.
 - uv — Python dependency manager (Dockerfile and CI pin `0.12.11`).
-- Node 24.15.0 — `.nvmrc` in the repo root, so `nvm use` picks it up from
-  there. `frontend/package.json` repeats the floor in `engines` and
-  `frontend/.npmrc` sets `engine-strict=true`, so `npm ci` refuses an older
-  Node instead of failing later with a confusing error. 24.15.0 is not
-  cosmetic: `abbrev` and `nopt` in the lockfile require `^24.15.0`.
+- Node 24.15.0 — run `nvm install` in the repo root: it reads `.nvmrc`, installs
+  that version and switches to it (`nvm use` alone fails when it is missing).
+  `npm ci` hard-fails on anything older (`engine-strict` in `frontend/.npmrc`);
+  the exact patch is required by `abbrev` and `nopt` in the lockfile.
 
 ## Run locally
 
