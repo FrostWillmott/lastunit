@@ -10,6 +10,19 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — CI never ran: `hashFiles` is illegal in a job-level `if`
+All 33 runs of `ci.yml` since the repo was created failed in 0s with no jobs and
+no logs, because `hashFiles()` is only available in step-level expressions — at
+job level it is a workflow-file error, which GitHub reports as a plain `failure`
+indistinguishable from a test failure in `gh run list`. The two guards
+(`frontend/package.json`, `docker-compose.yml`) came from the scaffolding
+template for repos that may lack those files; both are committed here, so they
+are deleted rather than moved. Second defect found the same way: the backend job
+ran `make check`, which includes `frontend-check` and therefore needs a
+`node_modules` that job never installs — it now runs the backend targets only.
+Neither defect was reachable locally, so `AGENTS.md` now requires watching the
+run after a push and linting workflows with `actionlint`.
+
 ## 2026-09-12 — Node floor is 24.15.0, enforced by `engine-strict`
 `.nvmrc` (repo root, so `nvm use` works from there) pins `24.15.0`; CI reads it via
 `node-version-file` and `frontend/package.json` repeats it in `engines` with
