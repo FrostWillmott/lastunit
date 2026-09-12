@@ -8,8 +8,9 @@ and revenue update live. Spec: `docs/acceptance.md` (Russian). Plan:
 
 Started from a scaffolding template — Claude Code's `workflow-scaffolding`
 skill plus a Vite + Vue 3 + TypeScript frontend skeleton. Built with Claude
-Code (CLI); the scaffold, plan and audit sessions used Claude Fable 5.1, and
-the full per-session tool/model record lives in `agent-sessions/`.
+Code (CLI): the implementation (stages 0-8) was written by deepseek-v4-pro on a
+non-Anthropic endpoint, while the scaffold, plan and audit sessions used Claude
+Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
 
 ## Stack
 
