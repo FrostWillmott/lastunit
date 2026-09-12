@@ -24,19 +24,24 @@ async def run_once(
     now: datetime,
     broadcaster: Broadcaster | None = None,
 ) -> int:
-    """Expire every lapsed hold, return its unit, cancel its order.
+    """Expire every lapsed hold of a still-open sale, return its unit, cancel its order.
 
-    ``FOR UPDATE SKIP LOCKED`` lets several workers run this without double-firing
-    the same hold. Returns the number of holds expired.
+    A hold that survived to the sale's end is left for ``end_ended_sales`` (which
+    clears it and notifies its owner), so the ``Sale.ends_at > now`` join keeps
+    this sweep to genuine 10-minute expiries. ``FOR UPDATE SKIP LOCKED`` lets
+    several workers run this without double-firing the same hold. Returns the
+    number of holds expired.
     """
     broadcaster = broadcaster or NoopBroadcaster()
     result = await session.execute(
         select(Reservation)
+        .join(Sale, Sale.id == Reservation.sale_id)
         .where(
             Reservation.status == ReservationStatus.HELD.value,
             Reservation.expires_at <= now,
+            Sale.ends_at > now,
         )
-        .with_for_update(skip_locked=True)
+        .with_for_update(skip_locked=True, of=Reservation)
     )
     lapsed = list(result.scalars().all())
     sale_ids = {reservation.sale_id for reservation in lapsed}
@@ -127,6 +132,25 @@ async def end_ended_sales(
     return len(ended)
 
 
+async def tick(
+    clock: Clock,
+    session_factory: async_sessionmaker[AsyncSession],
+    broadcaster: Broadcaster,
+) -> tuple[int, int, int]:
+    """Run one scheduler pass: end ended sales, expire lapsed holds, send emails.
+
+    ``end_ended_sales`` runs before ``run_once`` so a hold that survived to the
+    sale's end is cleared and its owner notified, never silently expired. Returns
+    ``(expired, ended, sent)``.
+    """
+    async with session_factory() as session:
+        now = await clock.now(session)
+        ended = await end_ended_sales(session, now, broadcaster)
+        expired = await run_once(session, now, broadcaster)
+        sent = await notifications.send_pending(session, now)
+    return expired, ended, sent
+
+
 async def loop(
     clock: Clock,
     session_factory: async_sessionmaker[AsyncSession],
@@ -137,18 +161,14 @@ async def loop(
     server was down (fire-late), so a missed hold expiry still returns the unit."""
     while True:
         try:
-            async with session_factory() as session:
-                now = await clock.now(session)
-                expired = await run_once(session, now, broadcaster)
-                ended = await end_ended_sales(session, now, broadcaster)
-                sent = await notifications.send_pending(session, now)
-                if expired or ended or sent:
-                    logger.info(
-                        "expired %d holds, ended %d sales, sent %d notifications",
-                        expired,
-                        ended,
-                        sent,
-                    )
+            expired, ended, sent = await tick(clock, session_factory, broadcaster)
+            if expired or ended or sent:
+                logger.info(
+                    "expired %d holds, ended %d sales, sent %d notifications",
+                    expired,
+                    ended,
+                    sent,
+                )
         except Exception:  # a bad tick must not kill the loop
             logger.exception("scheduler tick failed")
         await asyncio.sleep(interval)
