@@ -10,6 +10,17 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — CI conventions are a rule module, `ci-pipeline.md`
+The three CI defects found today were each a different class (workflow-file error,
+job environment not matching its command, undeclared tool), so the lesson is a
+module, not three comments in `ci.yml`. Five structural [MUST] rules plus one
+empirical rule that explicitly outranks them: a task is not done until the pushed
+commit has a green run confirmed by command, and a job absent from the run counts
+as failed. `_LEVELS.md` now names use of CI as [MUST] control infrastructure, and
+the module supersedes the module list in the 2026-09-10 "Rule modules and
+layering" entry. The empirical rule lives only in the module; `AGENTS.md` points
+at it rather than restating it.
+
 ## 2026-09-12 — ruff is a declared dev dependency, pinned to the pre-commit rev
 `make lint` ran `uv run ruff`, but ruff was declared nowhere — it only worked
 locally because a global `~/.local/bin/ruff` was on PATH, so the first CI run that

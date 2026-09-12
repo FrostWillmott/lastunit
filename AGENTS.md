@@ -26,7 +26,7 @@ table); only "opens for everyone at the start" is marked partially proven. See
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
-frontend-vue, documentation. Every file in `.claude/rules/` applies.
+frontend-vue, documentation, ci-pipeline. Every file in `.claude/rules/` applies.
 
 ## Architecture
 3-layer split (`routers/` → `services/` → DB session), NOT full Clean
@@ -93,20 +93,6 @@ See [`DECISIONS.md`](DECISIONS.md) for the full, dated log.
   commit messages are welcome. Skip co-author lines.
 - Small, frequent commits with real timestamps; the spec asks for a visible
   timeline.
-
-### After pushing, confirm CI on GitHub
-A push is not done until the run is green. `make ci` passing locally does not
-prove CI passes: the workflow file itself is never exercised locally.
-
-```bash
-gh run watch "$(gh run list -L1 --json databaseId --jq '.[0].databaseId')"
-gh run view --log-failed          # on a failure
-```
-
-A broken *workflow file* fails the run in 0s with **no jobs and no logs** —
-`gh run view` only says "likely failed because of a workflow file issue", and
-`gh run list` shows a plain `failure` that looks like a test failure. Lint the
-file before pushing (`actionlint .github/workflows/*.yml`, `brew install
-actionlint`): it catches what YAML parsing cannot, such as `hashFiles` being
-illegal in a job-level `if`. That exact mistake failed 33 consecutive runs
-before anyone read the run list.
+- A push is not done until the pushed commit has a green run confirmed by
+  command, and a job missing from the run counts as failed. Commands, the
+  failure modes and why local checks prove nothing: `.claude/rules/ci-pipeline.md`.
