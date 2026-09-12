@@ -17,10 +17,12 @@ from app.services.sales import create_sale
 
 logger = logging.getLogger("app.seed")
 
-# The demo sale the reviewer sees on first `make up`: starts a minute after the
-# seed runs, 5 units, a half-hour window, priced 99.00 in the shop's zone. The
-# entrypoint runs the seed on every container start, so creation is idempotent
-# by title — re-seeding must not pile up demo sales.
+# The demo sale the reviewer sees on `make up`: 5 units, 99.00, Europe/Moscow,
+# starting a minute after the seed runs. The entrypoint seeds on every container
+# start, so creation is idempotent by title and re-anchored — once the previous
+# demo sale's window has passed, a fresh one is created so a later start still
+# shows a live flash sale rather than a long-ended one. Keying on the title (no
+# natural key) is a demo-only simplification; see DECISIONS.md.
 DEMO_SALE_TITLE = "Demo flash sale"
 DEMO_SALE_TIMEZONE = "Europe/Moscow"
 DEMO_SALE_PRICE_MINOR = 9900
@@ -36,12 +38,17 @@ async def seed_shop_user(email: str, password: str) -> None:
 
 
 async def seed_demo_sale(now: datetime) -> None:
-    """Create the demo sale if none exists, starting a minute from ``now``."""
+    """Ensure a live/upcoming demo sale exists, starting a minute from ``now``.
+
+    A demo sale whose window has already passed is left as an ended row and a
+    fresh one is created, so re-running the seed never leaves the storefront
+    with only a long-ended sale.
+    """
     async with SessionFactory() as session:
-        existing = await session.scalar(
-            select(Sale).where(Sale.title == DEMO_SALE_TITLE)
+        live = await session.scalar(
+            select(Sale).where(Sale.title == DEMO_SALE_TITLE, Sale.ends_at > now)
         )
-        if existing is not None:
+        if live is not None:
             return
         start_local = (
             now.astimezone(ZoneInfo(DEMO_SALE_TIMEZONE)).replace(tzinfo=None)
@@ -61,6 +68,9 @@ async def seed_demo_sale(now: datetime) -> None:
 
 async def main() -> None:
     settings = Settings()
+    # The seed runs as its own process (not under uvicorn/create_app), so it
+    # must configure the root logger itself or its log lines are dropped.
+    logging.basicConfig(level=settings.log_level)
     if settings.app_env == "prod":
         logger.info("skipping the demo seed in prod")
         return
