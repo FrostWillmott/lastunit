@@ -106,6 +106,7 @@ async def create_sale(
     body: SaleCreateRequest,
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
+    broadcaster: Broadcaster = Depends(get_broadcaster),
     _shop: object = Depends(require_shop),
 ) -> SaleResponse:
     try:
@@ -123,6 +124,13 @@ async def create_sale(
             status_code=422,
             detail="ends_at must be after starts_at in the sale's timezone",
         ) from None
+    # A storefront opened before the shop listed this sale would otherwise not
+    # show it until a reload — and "the page was open in advance" is exactly the
+    # scenario acceptance bullet 1 describes. Announced after the service's
+    # commit, like every other broadcast.
+    await broadcaster.publish(
+        "sale_status", {"sale_id": sale.id, "status": sale.status}
+    )
     return _to_response(sale, await clock.now(db))
 
 

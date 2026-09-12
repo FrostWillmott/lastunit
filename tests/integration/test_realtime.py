@@ -75,9 +75,6 @@ async def test_stock_event_reaches_second_client() -> None:
     await _ensure_user(*_BUYER, UserRole.BUYER.value)
 
     async with _client(broadcaster) as client:
-        sub1 = broadcaster.subscribe()
-        sub2 = broadcaster.subscribe()
-
         await _login(client, *_SHOP)
         sale = await client.post(
             "/api/sales",
@@ -92,6 +89,11 @@ async def test_stock_event_reaches_second_client() -> None:
         )
         sale_id = int(sale.json()["id"])
 
+        # Subscribe after creation: listing a sale is itself a broadcast now, and
+        # this test is about the stock event that a reserve produces.
+        sub1 = broadcaster.subscribe()
+        sub2 = broadcaster.subscribe()
+
         await _login(client, *_BUYER)
         reserved = await client.post(f"/api/sales/{sale_id}/reserve")
         assert reserved.status_code == 201
@@ -102,6 +104,34 @@ async def test_stock_event_reaches_second_client() -> None:
         assert event2 == "stock_changed"
         assert payload1["sale_id"] == sale_id
         assert payload2["sale_id"] == sale_id
+
+
+async def test_create_sale_broadcasts_sale_status_to_open_clients() -> None:
+    """A storefront opened before the shop lists a sale still learns about it."""
+    broadcaster = InProcessBroadcaster()
+    await _ensure_user(*_SHOP, UserRole.SHOP.value)
+
+    async with _client(broadcaster) as client:
+        await _login(client, *_SHOP)
+        # Subscribed before the sale exists — the "page open in advance" case.
+        subscription = broadcaster.subscribe()
+
+        created = await client.post(
+            "/api/sales",
+            json={
+                "title": "Listed while you watch",
+                "price_minor": 1000,
+                "quantity": 5,
+                "timezone": "UTC",
+                "starts_at": "2026-06-01T11:00:00",
+                "ends_at": "2026-06-01T13:00:00",
+            },
+        )
+        assert created.status_code == 201, created.text
+
+        event, payload = await anext(subscription)
+        assert event == "sale_status"
+        assert payload["sale_id"] == int(created.json()["id"])
 
 
 async def test_hold_expiry_broadcasts() -> None:
