@@ -11,12 +11,13 @@ that supersedes it.
 -->
 
 ## 2026-09-12 — Python is pinned in `.python-version`; the runtime stays 3.12
-Dependabot's `python:3.12-slim` → `3.14-slim` exposed a bigger problem: the
-interpreter was pinned nowhere, so three environments ran three versions — CI on
-the runner's system 3.12.3, local dev on 3.13.9, the image on 3.12. Tested-on,
-developed-on and deployed-on were all different. `.python-version` now states it
-once (3.12); uv reads it locally and in CI and fetches the interpreter, so no
-system Python is needed. `requires-python = ">=3.12"` stays what it always was —
+Dependabot's `python:3.12-slim` → `3.14-slim` exposed that the interpreter was
+pinned nowhere: with only `requires-python = ">=3.12"` to go on, uv took the CI
+runner's *system* interpreter (3.12.3), so a change to the runner image would
+have moved the tested-on version silently, and a contributor with a newer Python
+would get a different venv from CI. `.python-version` now states it once (3.12);
+uv reads it locally and in CI and fetches the interpreter, so no system Python is
+needed. `requires-python = ">=3.12"` stays what it always was —
 the floor this code supports, not the version we run — and ruff's
 `target-version = "py312"` stays a modernization floor. 3.12 over 3.13/3.14
 because README, AGENTS and the spec all describe 3.12 and CI already tested it:
