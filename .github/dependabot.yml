@@ -26,6 +26,12 @@ updates:
       # the next line reaches Active LTS — 26 is LTS from 2026-10-28.
       - dependency-name: node
         update-types: ["version-update:semver-major"]
+      # Same reasoning for Python: `.python-version` owns the interpreter minor,
+      # and the image tag follows it. Patch bumps and digest refreshes still flow.
+      - dependency-name: python
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
 
   - package-ecosystem: uv
     directory: /
