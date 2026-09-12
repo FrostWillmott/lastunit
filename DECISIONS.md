@@ -10,6 +10,24 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — A backgrounded storefront re-syncs on focus, the tick is left alone
+The runtime check measured a hidden tab still showing a sale as upcoming 27s
+after it had opened: the storefront derives the phase from
+`useTimestamp({ interval: 1000 })` minus `serverOffset`, and Chrome throttles
+timers in hidden tabs, so `now` simply stops advancing. Nothing can be bought
+early — the server answers `409` until the real start — so this is a display
+gap, but it is the gap behind acceptance bullet 1's "opens for everyone at once".
+Fixing the tick is not on offer: the throttling is the browser's, and an app
+cannot opt out of it. So the storefront re-anchors instead, refetching when the
+document becomes visible again; that restores `serverOffset` and picks up
+anything the throttled connection missed. Placed in `StorefrontView.vue` rather
+than the sales store on purpose: a `watch` in a component is torn down with the
+component, while a store-level listener on a global DOM event outlives every
+store instance — it leaked across tests immediately, which is the same leak the
+app would carry. `StorefrontView.test.ts` is the repo's first view test;
+coverage thresholds only count `src/stores` and `src/api`, so it neither
+dilutes nor inflates the number.
+
 ## 2026-09-12 — Listing a sale broadcasts `sale_status`, not a new `sale_created`
 The runtime check (`docs/verification-2026-09-12.md`) found that a storefront
 opened *before* the shop lists a sale never sees it: `create_sale` published

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useTimestamp } from '@vueuse/core'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useDocumentVisibility, useTimestamp } from '@vueuse/core'
 import { ApiError } from '../api/client'
 import type { Sale } from '../api/types'
 import { formatPrice } from '../lib/money'
@@ -25,6 +25,17 @@ onMounted(async () => {
 const serverNow = computed(() =>
   store.serverOffset === null ? null : now.value - store.serverOffset,
 )
+
+// A hidden tab has its timers throttled, so `now` stops advancing and every
+// phase derived from it freezes: a sale that has opened keeps showing as
+// upcoming, measured once at 27s past the start instant
+// (docs/verification-2026-09-12.md). The throttling is the browser's and cannot
+// be turned off, so re-anchor on the way back: refetching restores serverOffset
+// and picks up whatever the throttled connection missed. A `watch` rather than
+// a `computed` because the side effect is a network call.
+watch(useDocumentVisibility(), (state) => {
+  if (state === 'visible') void store.fetchSales()
+})
 
 type Phase = 'upcoming' | 'active' | 'ended'
 
