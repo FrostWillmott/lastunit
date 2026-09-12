@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Minimum password length applies only at registration
+Registration enforces `min_length=8` through a `RegisterRequest` schema that
+subclasses the shared `CredentialsRequest`; login keeps the unconstrained
+schema so a too-short password on sign-in returns 401 (wrong credential)
+rather than a 422 validation error. Length is a creation contract, not an
+authentication check.
+
 ## 2026-09-12 — A decline after the sale end clears the reservation and cancels the order
 Accepted in commit `2dae4ad`, recorded late. Once a sale has ended its
 `available` is already 0, so a payment declined after `ends_at` has no unit to
