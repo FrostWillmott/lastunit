@@ -44,7 +44,12 @@ export const useShopStore = defineStore('shop', () => {
   }
 
   async function applyEvent(event: RealtimeEvent): Promise<void> {
-    if (event !== 'stock_changed' && event !== 'sale_status') return
+    if (
+      event !== 'stock_changed' &&
+      event !== 'sale_status' &&
+      event !== 'order_status'
+    )
+      return
     try {
       await fetchSales()
       if (selectedSaleId.value !== null) await fetchStats(selectedSaleId.value)
@@ -60,6 +65,7 @@ export const useShopStore = defineStore('shop', () => {
     const rt = useRealtime()
     rt.on('stock_changed', () => void applyEvent('stock_changed'))
     rt.on('sale_status', () => void applyEvent('sale_status'))
+    rt.on('order_status', () => void applyEvent('order_status'))
     rt.onReconnect(() => {
       void fetchSales()
       if (selectedSaleId.value !== null) void fetchStats(selectedSaleId.value)

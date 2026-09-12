@@ -18,10 +18,47 @@ export interface Checkout {
   error: string | null
 }
 
+// The idempotency key + order id survive a reload in sessionStorage, so a
+// "try again" after a decline reuses the existing order instead of creating a
+// second one (which the backend's UNIQUE(reservation_id) would reject).
+const CHECKOUT_STORAGE = 'lastunit:checkouts'
+
+interface PersistedCheckout {
+  key: string
+  orderId: number | null
+}
+
+function loadCheckouts(): Record<number, Checkout> {
+  try {
+    const raw = sessionStorage.getItem(CHECKOUT_STORAGE)
+    if (!raw) return {}
+    const saved = JSON.parse(raw) as Record<string, PersistedCheckout>
+    const restored: Record<number, Checkout> = {}
+    for (const [id, value] of Object.entries(saved)) {
+      restored[Number(id)] = { ...value, busy: false, outcome: null, error: null }
+    }
+    return restored
+  } catch {
+    return {}
+  }
+}
+
+function persistCheckouts(checkouts: Record<number, Checkout>): void {
+  try {
+    const slim: Record<number, PersistedCheckout> = {}
+    for (const [id, checkout] of Object.entries(checkouts)) {
+      slim[Number(id)] = { key: checkout.key, orderId: checkout.orderId }
+    }
+    sessionStorage.setItem(CHECKOUT_STORAGE, JSON.stringify(slim))
+  } catch {
+    // sessionStorage can be unavailable (private mode); the in-memory copy works.
+  }
+}
+
 export const useCartStore = defineStore('cart', () => {
   const cart = ref<Cart | null>(null)
   const serverOffset = ref<number | null>(null)
-  const checkouts = ref<Record<number, Checkout>>({})
+  const checkouts = ref<Record<number, Checkout>>(loadCheckouts())
 
   function checkoutOf(reservationId: number): Checkout | undefined {
     return checkouts.value[reservationId]
@@ -55,6 +92,7 @@ export const useCartStore = defineStore('cart', () => {
       }
       checkouts.value = { ...checkouts.value, [reservationId]: created }
       checkout = checkouts.value[reservationId]!
+      persistCheckouts(checkouts.value)
     }
     if (checkout.busy) return
     checkout.busy = true
@@ -64,6 +102,7 @@ export const useCartStore = defineStore('cart', () => {
       if (checkout.orderId === null) {
         const order = await api.createOrder(reservationId, checkout.key)
         checkout.orderId = order.id
+        persistCheckouts(checkouts.value)
       }
       checkout.outcome = (await api.pay(checkout.orderId, cardNumber)).status
     } catch (e) {
@@ -81,7 +120,12 @@ export const useCartStore = defineStore('cart', () => {
   }
 
   async function applyEvent(event: RealtimeEvent): Promise<void> {
-    if (event !== 'order_status' && event !== 'stock_changed') return
+    if (
+      event !== 'order_status' &&
+      event !== 'stock_changed' &&
+      event !== 'sale_status'
+    )
+      return
     try {
       await fetchCart()
     } catch {
@@ -96,6 +140,7 @@ export const useCartStore = defineStore('cart', () => {
     const rt = useRealtime()
     rt.on('order_status', () => void applyEvent('order_status'))
     rt.on('stock_changed', () => void applyEvent('stock_changed'))
+    rt.on('sale_status', () => void applyEvent('sale_status'))
     rt.onReconnect(() => void fetchCart())
   }
 
