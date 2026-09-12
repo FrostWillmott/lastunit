@@ -1,4 +1,7 @@
 {
+  "env": {
+    "VIRTUAL_ENV": ""
+  },
   "permissions": {
     "allow": [
       "Bash(make *)",
