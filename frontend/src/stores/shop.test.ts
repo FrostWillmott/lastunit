@@ -127,7 +127,7 @@ describe('shop store', () => {
     expect(store.stats?.available).toBe(1)
   })
 
-  it('bindRealtime subscribes to stock/sale/order events and reconnect, once', () => {
+  it('bindRealtime subscribes to stock/sale events and reconnect, once', () => {
     const store = useShopStore()
 
     store.bindRealtime()
@@ -135,13 +135,13 @@ describe('shop store', () => {
 
     expect(realtime.on).toHaveBeenCalledWith('stock_changed', expect.any(Function))
     expect(realtime.on).toHaveBeenCalledWith('sale_status', expect.any(Function))
-    expect(realtime.on).toHaveBeenCalledWith('order_status', expect.any(Function))
+    expect(realtime.on).toHaveBeenCalledWith('sale_stats', expect.any(Function))
     expect(realtime.onReconnect).toHaveBeenCalledWith(expect.any(Function))
     expect(realtime.on).toHaveBeenCalledTimes(3)
     expect(realtime.onReconnect).toHaveBeenCalledTimes(1)
   })
 
-  it('applyEvent refetches stats on order_status', async () => {
+  it('applyEvent refetches stats on sale_stats', async () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(ok(200, STATS))
@@ -151,9 +151,22 @@ describe('shop store', () => {
     const store = useShopStore()
     await store.fetchStats(1)
 
-    await store.applyEvent('order_status')
+    await store.applyEvent('sale_stats')
 
     expect(fetch).toHaveBeenCalledTimes(3)
     expect(store.stats?.sold).toBe(4)
+  })
+
+  // order_status is scoped to the buyer who owns the order, so it never reaches
+  // a shop dashboard; the store must not pretend otherwise by refetching on it.
+  it('applyEvent ignores order_status', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(ok(200, STATS))
+    vi.stubGlobal('fetch', fetch)
+    const store = useShopStore()
+    await store.fetchStats(1)
+
+    await store.applyEvent('order_status')
+
+    expect(fetch).toHaveBeenCalledTimes(1)
   })
 })

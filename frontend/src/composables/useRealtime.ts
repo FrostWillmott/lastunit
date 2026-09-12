@@ -11,7 +11,12 @@
 // live updates need. The browser's EventSource auto-reconnects, so no retry loop
 // is needed here (see DECISIONS.md).
 
-export const REALTIME_EVENTS = ['stock_changed', 'sale_status', 'order_status'] as const
+export const REALTIME_EVENTS = [
+  'stock_changed',
+  'sale_status',
+  'order_status',
+  'sale_stats',
+] as const
 export type RealtimeEvent = (typeof REALTIME_EVENTS)[number]
 
 type Listener = (data: unknown) => void

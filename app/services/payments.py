@@ -222,3 +222,8 @@ async def apply_payment_result(
         {"order_id": order_id, "status": new_order_status},
         user_id=order.user_id,
     )
+    # The shop dashboard's sold/revenue/pending figures move on every settled
+    # payment, but ``order_status`` is scoped to the buyer and no stock event
+    # fires here (``available`` was already decremented at reserve time). So
+    # announce the sale itself: the id is public, the numbers behind it are not.
+    await broadcaster.publish("sale_stats", {"sale_id": order.sale_id})

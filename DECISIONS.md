@@ -10,6 +10,17 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — The shop dashboard refetches on `sale_stats`, not `order_status`
+Scoping `order_status` to the buyer who owns the order (a privacy fix) cut the shop
+dashboard off: it subscribed to that event, and a settled payment fires no stock
+event because `available` is decremented at reserve time, so sold/revenue/pending
+stopped moving live. `apply_payment_result` now also publishes an unscoped
+`sale_stats` carrying only `sale_id`. Rejected: unscoping `order_status` (leaks
+order ids to every connection) and reusing `stock_changed` (it would lie about
+stock and make every buyer's store refetch). A sale id is already public in the
+sale list, so the broadcast reveals nothing new — the figures behind it still
+need the shop-only stats endpoint.
+
 ## 2026-09-12 — Minimum password length applies only at registration
 Registration enforces `min_length=8` through a `RegisterRequest` schema that
 subclasses the shared `CredentialsRequest`; login keeps the unconstrained
