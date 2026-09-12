@@ -90,7 +90,9 @@ async def webhook(
     expected = hmac.new(
         settings.paystub_webhook_secret.encode(), body, hashlib.sha256
     ).hexdigest()
-    if not hmac.compare_digest(signature, expected):
+    if not hmac.compare_digest(
+        signature.encode("latin-1", "replace"), expected.encode()
+    ):
         raise HTTPException(status_code=401, detail="invalid signature")
     try:
         payload = WebhookPayload.model_validate_json(body)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -15,6 +16,7 @@ from app.main import create_app
 from app.models.enums import OrderStatus, PaymentStatus, ReservationStatus, UserRole
 from app.models.order import Order, Payment
 from app.models.reservation import Reservation
+from app.models.sale import Sale
 from app.paystub_client import PaystubClient
 from app.services.auth import ensure_user
 
@@ -128,14 +130,16 @@ async def test_double_pay_calls_paystub_once() -> None:
     async with client:
         order_id = await _place_order(client)
 
-        first = await client.post(
-            f"/api/orders/{order_id}/pay", json={"card_number": "4111111111119995"}
-        )
-        second = await client.post(
-            f"/api/orders/{order_id}/pay", json={"card_number": "4111111111119995"}
-        )
-        assert first.status_code == 200
-        assert second.status_code == 409
+        async def pay() -> httpx.Response:
+            return await client.post(
+                f"/api/orders/{order_id}/pay",
+                json={"card_number": "4111111111119995"},
+            )
+
+        first, second = await asyncio.gather(pay(), pay())
+        assert {first.status_code, second.status_code} == {200, 409}
+        loser = first if first.status_code == 409 else second
+        assert loser.json()["detail"] == "payment already in progress"
 
     assert len(paystub.calls) == 1
 
@@ -180,6 +184,18 @@ async def test_hung_payment_keeps_stock() -> None:
             await session.execute(select(Payment).where(Payment.order_id == order_id))
         ).scalar_one()
         assert payment.status == PaymentStatus.PENDING.value
+        # The reserved unit stays off the shelf: the reservation is paying and
+        # the sale's available is one less than its quantity, not returned.
+        order = await session.scalar(select(Order).where(Order.id == order_id))
+        assert order is not None
+        reservation = await session.scalar(
+            select(Reservation).where(Reservation.id == order.reservation_id)
+        )
+        sale = await session.scalar(select(Sale).where(Sale.id == order.sale_id))
+        assert reservation is not None
+        assert reservation.status == ReservationStatus.PAYING.value
+        assert sale is not None
+        assert sale.available == sale.quantity - 1
 
 
 async def test_hung_payment_resolves_via_webhook() -> None:
@@ -244,3 +260,19 @@ async def test_webhook_rejects_malformed_payloads() -> None:
                 headers={"X-Webhook-Signature": sign(body)},
             )
             assert response.status_code == 400, body
+
+
+async def test_webhook_rejects_non_ascii_signature() -> None:
+    paystub = FakePaystubClient("pending")
+    client, _ = await _setup(paystub)
+
+    async with client:
+        body = json.dumps({"reference": "r", "status": "approved"}).encode()
+        # Send the signature as raw latin-1 bytes (as a real client would); the
+        # server must treat it as a bad signature, not a 500.
+        response = await client.post(
+            "/api/payments/webhook",
+            content=body,
+            headers={b"X-Webhook-Signature": "café".encode("latin-1")},
+        )
+        assert response.status_code == 401
