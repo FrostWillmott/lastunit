@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 from datetime import datetime, timedelta
@@ -46,7 +47,7 @@ async def register(db: AsyncSession, email: str, password: str) -> User:
         raise EmailTakenError
     user = User(
         email=email,
-        password_hash=hash_password(password),
+        password_hash=await asyncio.to_thread(hash_password, password),
         role=UserRole.BUYER.value,
     )
     db.add(user)
@@ -73,7 +74,7 @@ async def ensure_user(
     normalized = email.strip().lower()
     statement = pg_insert(User).values(
         email=normalized,
-        password_hash=hash_password(password),
+        password_hash=await asyncio.to_thread(hash_password, password),
         role=role,
     )
     statement = statement.on_conflict_do_update(
@@ -95,7 +96,9 @@ async def login(
     ttl: timedelta,
 ) -> tuple[str, User]:
     user = await db.scalar(select(User).where(User.email == email))
-    if user is None or not verify_password(password, user.password_hash):
+    if user is None or not await asyncio.to_thread(
+        verify_password, password, user.password_hash
+    ):
         raise InvalidCredentialsError
     token = new_session_token()
     db.add(
