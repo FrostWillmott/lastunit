@@ -1,7 +1,7 @@
 # Backend image. Base pinned by digest (dependency-hygiene audit: floating tags
 # drift silently). Refresh with:
 #   curl -s https://hub.docker.com/v2/repositories/library/python/tags/3.12-slim | jq .digest
-FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+FROM python:3.14-slim@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 # uv, pinned. Copying the binary from the official image avoids a curl|sh step.
 COPY --from=ghcr.io/astral-sh/uv:0.12.11 /uv /usr/local/bin/uv
