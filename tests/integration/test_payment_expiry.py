@@ -3,10 +3,11 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 
 from app.db import SessionFactory
 from app.models.enums import OrderStatus, ReservationStatus, UserRole
+from app.models.notification import Notification
 from app.models.order import Order
 from app.models.reservation import Reservation
 from app.models.sale import Sale
@@ -14,7 +15,8 @@ from app.models.user import User
 from app.realtime import NoopBroadcaster
 from app.scheduler import run_once
 from app.services.auth import ensure_user
-from app.services.cart import reserve
+from app.services.cart import list_cart, reserve
+from app.services.notifications import CART_CLEARED
 from app.services.orders import create_order
 from app.services.payments import (
     HoldExpiredError,
@@ -94,3 +96,88 @@ async def test_pay_on_expired_hold_is_409() -> None:
             await start_payment(
                 session, order_id, buyer_id, now + timedelta(minutes=11)
             )
+
+
+async def test_approved_after_order_cancelled_does_not_email() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    _, buyer_id, order_id = await _place_order(now)
+
+    async with SessionFactory() as session:
+        provider_ref, _ = await start_payment(session, order_id, buyer_id, now)
+
+    # A concurrent sale-end sweep cancels the order and clears the reservation
+    # while the payment is still pending. Simulate that committed state directly
+    # (the guarded-clear transition is what makes it possible to survive).
+    async with SessionFactory() as session:
+        reservation_id = (
+            await session.execute(
+                select(Order.reservation_id).where(Order.id == order_id)
+            )
+        ).scalar_one()
+        await session.execute(
+            update(Order)
+            .where(Order.id == order_id)
+            .values(status=OrderStatus.CANCELLED.value)
+        )
+        await session.execute(
+            update(Reservation)
+            .where(Reservation.id == reservation_id)
+            .values(status=ReservationStatus.CLEARED.value)
+        )
+        await session.commit()
+
+    async with SessionFactory() as session:
+        await apply_payment_result(session, provider_ref, "approved", now)
+
+    async with SessionFactory() as session:
+        order = await session.scalar(select(Order).where(Order.id == order_id))
+        assert order is not None
+        assert order.status == OrderStatus.CANCELLED.value
+        reservation = await session.scalar(
+            select(Reservation).where(Reservation.id == reservation_id)
+        )
+        assert reservation is not None
+        assert reservation.status == ReservationStatus.CLEARED.value
+        count = await session.scalar(select(func.count()).select_from(Notification))
+        assert count == 0
+
+
+async def test_declined_after_sale_end_notifies_cart_cleared() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    _, buyer_id, order_id = await _place_order(now)
+
+    async with SessionFactory() as session:
+        provider_ref, _ = await start_payment(session, order_id, buyer_id, now)
+
+    # The stub declines after the sale has ended (13:00); the reservation is
+    # cleared and its owner notified, mirroring the sale-end cleanup path.
+    async with SessionFactory() as session:
+        await apply_payment_result(
+            session, provider_ref, "declined", now + timedelta(minutes=61)
+        )
+
+    async with SessionFactory() as session:
+        order = await session.scalar(select(Order).where(Order.id == order_id))
+        assert order is not None
+        assert order.status == OrderStatus.CANCELLED.value
+        notification = await session.scalar(
+            select(Notification).where(Notification.kind == CART_CLEARED)
+        )
+        assert notification is not None
+        assert notification.entity_id == order.reservation_id
+
+
+async def test_list_cart_includes_paying_reservation() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    _, buyer_id, order_id = await _place_order(now)
+
+    async with SessionFactory() as session:
+        await start_payment(session, order_id, buyer_id, now)
+
+    # The hold has lapsed, but the reservation is paying (a hung stub) — it must
+    # still appear in the cart so the buyer sees their unit is still held.
+    async with SessionFactory() as session:
+        items = await list_cart(session, buyer_id, now + timedelta(minutes=11))
+
+    assert len(items) == 1
+    assert items[0][0].status == ReservationStatus.PAYING.value

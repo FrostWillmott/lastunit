@@ -57,7 +57,7 @@ async def login(
     ttl = timedelta(days=settings.session_ttl_days)
     try:
         token, user = await auth.login(
-            db, body.email, body.password, await clock.now(), ttl
+            db, body.email, body.password, await clock.now(db), ttl
         )
     except auth.InvalidCredentialsError:
         raise HTTPException(

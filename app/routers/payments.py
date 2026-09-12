@@ -45,7 +45,7 @@ async def pay(  # noqa: PLR0913  (FastAPI endpoint: path + body + 6 injected dep
     paystub: PaystubClient = Depends(get_paystub),
     broadcaster: Broadcaster = Depends(get_broadcaster),
 ) -> PayResponse:
-    now = await clock.now()
+    now = await clock.now(db)
     try:
         provider_ref, amount_minor = await payments_service.start_payment(
             db, order_id, user.id, now
@@ -72,7 +72,7 @@ async def pay(  # noqa: PLR0913  (FastAPI endpoint: path + body + 6 injected dep
         outcome = "pending"
     if outcome in ("approved", "declined"):
         await payments_service.apply_payment_result(
-            db, provider_ref, outcome, await clock.now(), broadcaster
+            db, provider_ref, outcome, await clock.now(db), broadcaster
         )
     return PayResponse(status=outcome)
 
@@ -97,6 +97,6 @@ async def webhook(
     except ValidationError:
         raise HTTPException(status_code=400, detail="invalid webhook payload") from None
     await payments_service.apply_payment_result(
-        db, payload.reference, payload.status, await clock.now(), broadcaster
+        db, payload.reference, payload.status, await clock.now(db), broadcaster
     )
     return {"ok": True}

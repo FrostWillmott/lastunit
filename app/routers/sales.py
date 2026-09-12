@@ -85,7 +85,7 @@ async def list_sales(
     db: AsyncSession = Depends(get_db),
     clock: Clock = Depends(get_clock),
 ) -> list[SaleResponse]:
-    now = await clock.now()
+    now = await clock.now(db)
     return [_to_response(sale, now) for sale in await sales_service.list_sales(db)]
 
 
@@ -98,7 +98,7 @@ async def get_sale(
     sale = await sales_service.get_sale(db, sale_id)
     if sale is None:
         raise HTTPException(status_code=404, detail="sale not found")
-    return _to_response(sale, await clock.now())
+    return _to_response(sale, await clock.now(db))
 
 
 @router.post("", status_code=201, response_model=SaleResponse)
@@ -123,7 +123,7 @@ async def create_sale(
             status_code=422,
             detail="ends_at must be after starts_at in the sale's timezone",
         ) from None
-    return _to_response(sale, await clock.now())
+    return _to_response(sale, await clock.now(db))
 
 
 class ReservationResponse(BaseModel):
@@ -143,7 +143,7 @@ async def reserve(
 ) -> ReservationResponse:
     try:
         reservation = await cart.reserve(
-            db, sale_id, user.id, await clock.now(), broadcaster
+            db, sale_id, user.id, await clock.now(db), broadcaster
         )
     except cart.NotStartedError:
         raise HTTPException(
