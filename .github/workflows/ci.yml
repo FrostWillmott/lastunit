@@ -40,12 +40,14 @@ jobs:
           enable-cache: true
       # --locked: fail if uv.lock disagrees with pyproject instead of re-resolving.
       - run: uv sync --locked --all-extras
+      # Backend targets only: make check would also run frontend-check, which
+      # needs a node_modules this job has no Node or npm ci for. The frontend
+      # job covers that half.
       - name: Lint + format + types + tests
-        run: make check
+        run: make lint format typecheck test
 
   frontend:
     runs-on: ubuntu-24.04
-    if: ${{ hashFiles('frontend/package.json') != '' }}
     defaults:
       run:
         working-directory: frontend
@@ -81,7 +83,6 @@ jobs:
 
   docker:
     runs-on: ubuntu-24.04
-    if: ${{ hashFiles('docker-compose.yml') != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
