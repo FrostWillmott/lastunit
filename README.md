@@ -13,6 +13,8 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
+## What it is
+
 Flash-sale service: a shop lists a batch of goods at a special price for a
 short window, and there are more buyers than stock. A buyer reserves one unit
 (10-minute hold) and pays through a payment stub; the shop watches stock, sold
@@ -21,9 +23,12 @@ and revenue update live. Spec: `docs/acceptance.md` (Russian). Plan:
 
 Started from a scaffolding template — Claude Code's `workflow-scaffolding`
 skill plus a Vite + Vue 3 + TypeScript frontend skeleton. Built with Claude
-Code (CLI): the implementation (stages 0-8) was written by deepseek-v4-pro on a
-non-Anthropic endpoint, while the scaffold, plan and audit sessions used Claude
-Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
+Code (CLI), with three models on different parts: the implementation
+(stages 0-8) was written by deepseek-v4-pro on a non-Anthropic endpoint; the
+scaffold, plan and audit sessions used Claude Fable 5.1; the end-to-end runtime
+check of the assembled app (`docs/verification-2026-09-12.md`) and the fixes it
+produced used Claude Opus 5. The full per-session tool/model record lives in
+`agent-sessions/`.
 
 ## Stack
 
