@@ -28,8 +28,13 @@ def create_app(
     clock = clock or PostgresClock(SessionFactory)
     broadcaster = broadcaster or InProcessBroadcaster()
     paystub_client = paystub_client or HttpPaystubClient(settings.paystub_url)
-    # App loggers (``app.*``) follow LOG_LEVEL; the process entry (uvicorn) owns
-    # the root handlers, so set the app logger instead of reconfiguring root.
+    # App loggers (``app.*``) follow LOG_LEVEL. uvicorn configures only its own
+    # ``uvicorn.*`` loggers and leaves the root logger without a handler, so an
+    # ``app.*`` INFO line falls through to Python's ``lastResort`` (WARNING+)
+    # and never appears. Configure the root handler once so the email stub and
+    # the scheduler are observable; ``basicConfig`` is a no-op if a handler
+    # already exists (e.g. the seed's own process already called it).
+    logging.basicConfig(level=settings.log_level)
     logging.getLogger("app").setLevel(settings.log_level)
 
     @asynccontextmanager
