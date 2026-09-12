@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import socket
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 import httpx
-import pytest
 import uvicorn
 from sqlalchemy import select
 
@@ -14,7 +14,7 @@ from app.db import SessionFactory
 from app.main import create_app
 from app.models.enums import UserRole
 from app.models.user import User
-from app.realtime import InProcessBroadcaster
+from app.realtime import Event, InProcessBroadcaster
 from app.scheduler import run_once
 from app.services.auth import ensure_user
 from app.services.cart import reserve
@@ -24,6 +24,23 @@ from app.services.sales import create_sale
 
 _SHOP = ("shop@example.com", "shop-password")
 _BUYER = ("buyer@example.com", "buyer-password")
+
+
+# The subscription itself never ends, so a short deadline is the only way to say
+# "nothing more is pending". Not a wall-clock dependency: every publish here is
+# in-process and already done before the drain starts.
+_DRAIN_TIMEOUT_SECONDS = 0.05
+
+
+async def _drain(subscription: AsyncIterator[Event]) -> AsyncIterator[Event]:
+    """Yield the events already queued for a subscriber, then stop."""
+    while True:
+        try:
+            yield await asyncio.wait_for(
+                anext(subscription), timeout=_DRAIN_TIMEOUT_SECONDS
+            )
+        except (TimeoutError, StopAsyncIteration):
+            return
 
 
 async def _ensure_user(email: str, password: str, role: str) -> None:
@@ -189,6 +206,50 @@ async def test_order_status_is_scoped_to_its_owner() -> None:
     assert event == "order_status"
     assert payload["order_id"] == order_id
 
-    # A connection for a different user never sees this order_status.
-    with pytest.raises(asyncio.TimeoutError):
-        await asyncio.wait_for(anext(stranger), timeout=0.05)
+    # A connection for a different user hears the sale-level event, never this
+    # buyer's order_status.
+    stranger_events = [event async for event in _drain(stranger)]
+    assert "order_status" not in [name for name, _ in stranger_events]
+
+
+async def test_payment_result_broadcasts_sale_stats_to_everyone() -> None:
+    """The shop dashboard is not the buyer, so it cannot hear ``order_status``.
+
+    A settled payment moves sold/revenue/pending without changing ``available``
+    (that was decremented at reserve time), so an unscoped ``sale_stats`` is the
+    only thing that tells an open dashboard to refetch.
+    """
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    broadcaster = InProcessBroadcaster()
+
+    async with SessionFactory() as session:
+        await ensure_user(session, *_BUYER, UserRole.BUYER.value)
+        buyer = (
+            await session.execute(select(User).where(User.email == _BUYER[0]))
+        ).scalar_one()
+        sale = await create_sale(
+            session,
+            title="X",
+            price_minor=1000,
+            quantity=1,
+            tz_name="UTC",
+            starts_at_local=datetime(2026, 6, 1, 11, 0),
+            ends_at_local=datetime(2026, 6, 1, 13, 0),
+        )
+        reservation = await reserve(session, sale.id, buyer.id, now, broadcaster)
+        order = await create_order(session, reservation.id, buyer.id, "key", now)
+        order_id, buyer_id, sale_id = order.id, buyer.id, sale.id
+
+    async with SessionFactory() as session:
+        provider_ref, _ = await start_payment(session, order_id, buyer_id, now)
+
+    # An anonymous stream — what the shop dashboard's connection looks like to
+    # the broadcaster as far as this buyer's scoped events are concerned.
+    dashboard = broadcaster.subscribe()
+
+    async with SessionFactory() as session:
+        await apply_payment_result(session, provider_ref, "approved", now, broadcaster)
+
+    assert ("sale_stats", {"sale_id": sale_id}) in [
+        event async for event in _drain(dashboard)
+    ]

@@ -44,11 +44,9 @@ export const useShopStore = defineStore('shop', () => {
   }
 
   async function applyEvent(event: RealtimeEvent): Promise<void> {
-    if (
-      event !== 'stock_changed' &&
-      event !== 'sale_status' &&
-      event !== 'order_status'
-    )
+    // sale_stats, not order_status: the latter is scoped to the buyer who owns
+    // the order, so a dashboard never receives another user's payment.
+    if (event !== 'stock_changed' && event !== 'sale_status' && event !== 'sale_stats')
       return
     try {
       await fetchSales()
@@ -65,7 +63,7 @@ export const useShopStore = defineStore('shop', () => {
     const rt = useRealtime()
     rt.on('stock_changed', () => void applyEvent('stock_changed'))
     rt.on('sale_status', () => void applyEvent('sale_status'))
-    rt.on('order_status', () => void applyEvent('order_status'))
+    rt.on('sale_stats', () => void applyEvent('sale_stats'))
     rt.onReconnect(() => {
       void fetchSales()
       if (selectedSaleId.value !== null) void fetchStats(selectedSaleId.value)
