@@ -30,13 +30,17 @@ Built with Claude Code: the repository's own conventions live in `AGENTS.md`,
 `.claude/rules/` and `.claude/skills/`, and the agent reads them every session.
 The work was split across models on purpose, in separate sessions:
 
-- **Claude Fable 5.1** — the plan (`docs/plan.md`) and the two independent
-  audits (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`).
-- **DeepSeek V4 Pro** — implemented the plan and the docs.
-- **Claude Opus 5** — the runtime verification
-  (`docs/verification-2026-09-12.md`), which reads screenshots and so can check
-  what the app actually renders — something V4 Pro cannot do — and the fixes
-  that followed from it.
+- **Claude Fable 5.1** — the judgement-heavy steps, and no implementation: the
+  scaffold and the plan (`docs/plan.md`), then every independent review —
+  `docs/plan-audit-2026-09-10.md` and `docs/code-audit-2026-09-12.md`, which
+  also carries the security review.
+- **DeepSeek V4 Pro** — the implementation: stages 0-8 and the docs, reviewing
+  its own work after each stage, plus the fixes each audit asked for.
+- **Claude Opus 5** — the two jobs that meant observing the running system from
+  outside: repairing a CI pipeline that had been failing unnoticed, and the
+  end-to-end runtime check (`docs/verification-2026-09-12.md`), which reads
+  screenshots and so can check what the app actually renders — something V4 Pro
+  cannot do — plus the fixes that came out of it.
 
 The split is the point: a mistake has to survive a different model in a
 different session before it reaches the repository, and both audits found
