@@ -77,12 +77,20 @@ async def start_payment(
         .returning(Reservation.id)
     )
     if result.scalar_one_or_none() is None:
+        # Re-read the reservation: the in-memory object still says ``held``, but a
+        # concurrent payment may have already flipped it, and the loser should be
+        # told "payment already in progress", not "reservation is not held".
+        current = (
+            await db.execute(
+                select(Reservation).where(Reservation.id == reservation.id)
+            )
+        ).scalar_one()
         if (
-            reservation.status == ReservationStatus.EXPIRED.value
-            or reservation.expires_at <= now
+            current.status == ReservationStatus.EXPIRED.value
+            or current.expires_at <= now
         ):
             raise HoldExpiredError
-        if reservation.status == ReservationStatus.PAYING.value:
+        if current.status == ReservationStatus.PAYING.value:
             raise PaymentAlreadyPendingError
         raise ReservationNotHeldError  # sold / released / cleared
 
@@ -205,5 +213,7 @@ async def apply_payment_result(
             new_order_status = OrderStatus.PENDING.value
     await db.commit()
     await broadcaster.publish(
-        "order_status", {"order_id": order_id, "status": new_order_status}
+        "order_status",
+        {"order_id": order_id, "status": new_order_status},
+        user_id=order.user_id,
     )

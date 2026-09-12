@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import httpx
@@ -65,12 +66,14 @@ async def test_double_pay_same_key_one_order() -> None:
         reservation_id = await _reserve(client)
         headers = {"Idempotency-Key": "key-1"}
 
-        first = await client.post(
-            "/api/orders", json={"reservation_id": reservation_id}, headers=headers
-        )
-        second = await client.post(
-            "/api/orders", json={"reservation_id": reservation_id}, headers=headers
-        )
+        async def create() -> httpx.Response:
+            return await client.post(
+                "/api/orders",
+                json={"reservation_id": reservation_id},
+                headers=headers,
+            )
+
+        first, second = await asyncio.gather(create(), create())
         assert first.status_code == 201
         assert second.status_code == 201
         assert first.json()["id"] == second.json()["id"]

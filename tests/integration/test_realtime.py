@@ -5,6 +5,7 @@ import socket
 from datetime import UTC, datetime, timedelta
 
 import httpx
+import pytest
 import uvicorn
 from sqlalchemy import select
 
@@ -17,6 +18,8 @@ from app.realtime import InProcessBroadcaster
 from app.scheduler import run_once
 from app.services.auth import ensure_user
 from app.services.cart import reserve
+from app.services.orders import create_order
+from app.services.payments import apply_payment_result, start_payment
 from app.services.sales import create_sale
 
 _SHOP = ("shop@example.com", "shop-password")
@@ -148,3 +151,44 @@ async def test_sse_smoke_real_server() -> None:
     finally:
         server.should_exit = True
         await task
+
+
+async def test_order_status_is_scoped_to_its_owner() -> None:
+    now = datetime(2026, 6, 1, 12, tzinfo=UTC)
+    broadcaster = InProcessBroadcaster()
+
+    async with SessionFactory() as session:
+        await ensure_user(session, "buyer@example.com", "pw", UserRole.BUYER.value)
+        buyer = (
+            await session.execute(select(User).where(User.email == "buyer@example.com"))
+        ).scalar_one()
+        sale = await create_sale(
+            session,
+            title="X",
+            price_minor=1000,
+            quantity=1,
+            tz_name="UTC",
+            starts_at_local=datetime(2026, 6, 1, 11, 0),
+            ends_at_local=datetime(2026, 6, 1, 13, 0),
+        )
+        reservation = await reserve(session, sale.id, buyer.id, now, broadcaster)
+        order = await create_order(session, reservation.id, buyer.id, "key", now)
+        order_id = order.id
+        buyer_id = buyer.id
+
+    async with SessionFactory() as session:
+        provider_ref, _ = await start_payment(session, order_id, buyer_id, now)
+
+    owner = broadcaster.subscribe(user_id=buyer_id)
+    stranger = broadcaster.subscribe(user_id=buyer_id + 1)
+
+    async with SessionFactory() as session:
+        await apply_payment_result(session, provider_ref, "approved", now, broadcaster)
+
+    event, payload = await anext(owner)
+    assert event == "order_status"
+    assert payload["order_id"] == order_id
+
+    # A connection for a different user never sees this order_status.
+    with pytest.raises(asyncio.TimeoutError):
+        await asyncio.wait_for(anext(stranger), timeout=0.05)
