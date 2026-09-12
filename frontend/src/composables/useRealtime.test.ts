@@ -7,6 +7,7 @@ class FakeEventSource {
   static instances: FakeEventSource[] = []
   url: string
   onopen: (() => void) | null = null
+  closed = false
   private listeners = new Map<string, ((event: MessageEvent) => void)[]>()
 
   constructor(url: string) {
@@ -32,6 +33,10 @@ class FakeEventSource {
 
   open(): void {
     this.onopen?.()
+  }
+
+  close(): void {
+    this.closed = true
   }
 }
 
@@ -104,5 +109,30 @@ describe('useRealtime', () => {
     source.emitRaw('stock_changed', 'not json')
 
     expect(handler).toHaveBeenCalledWith(null)
+  })
+
+  it('closeRealtime closes the source and openRealtime opens a fresh one', async () => {
+    const { closeRealtime, openRealtime } = await import('./useRealtime')
+    const { source } = await freshRealtime()
+
+    closeRealtime()
+    expect(source.closed).toBe(true)
+
+    openRealtime()
+    expect(FakeEventSource.instances).toHaveLength(2)
+    expect(FakeEventSource.instances[1]!.closed).toBe(false)
+  })
+
+  it('keeps listeners subscribed across a close/reopen', async () => {
+    const { useRealtime, closeRealtime, openRealtime } = await import('./useRealtime')
+    const rt = useRealtime()
+    const handler = vi.fn()
+    rt.on('stock_changed', handler)
+
+    closeRealtime()
+    openRealtime()
+
+    FakeEventSource.instances[1]!.emit('stock_changed', { sale_id: 1 })
+    expect(handler).toHaveBeenCalledWith({ sale_id: 1 })
   })
 })

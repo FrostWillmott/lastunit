@@ -2,6 +2,15 @@ import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from './auth'
 
+const realtime = vi.hoisted(() => ({
+  openRealtime: vi.fn(),
+  closeRealtime: vi.fn(),
+}))
+vi.mock('../composables/useRealtime', () => ({
+  openRealtime: realtime.openRealtime,
+  closeRealtime: realtime.closeRealtime,
+}))
+
 function mockFetch(status: number, body: unknown) {
   return vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
@@ -10,7 +19,11 @@ function mockFetch(status: number, body: unknown) {
   })
 }
 
-beforeEach(() => setActivePinia(createPinia()))
+beforeEach(() => {
+  setActivePinia(createPinia())
+  realtime.openRealtime.mockClear()
+  realtime.closeRealtime.mockClear()
+})
 afterEach(() => vi.unstubAllGlobals())
 
 describe('auth store', () => {
@@ -26,6 +39,7 @@ describe('auth store', () => {
     expect(auth.user).toEqual({ id: 1, email: 'shop@example.com', role: 'shop' })
     expect(auth.isAuthenticated).toBe(true)
     expect(auth.isShop).toBe(true)
+    expect(realtime.openRealtime).toHaveBeenCalledTimes(1)
   })
 
   it('fetchMe restores the session from the cookie and marks initialized', async () => {
@@ -61,6 +75,7 @@ describe('auth store', () => {
     await auth.logout()
 
     expect(auth.user).toBeNull()
+    expect(realtime.closeRealtime).toHaveBeenCalledTimes(1)
     expect(logoutFetch).toHaveBeenCalledWith(
       '/api/auth/logout',
       expect.objectContaining({ method: 'POST' }),
