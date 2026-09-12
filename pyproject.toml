@@ -28,6 +28,13 @@ dev = [
     "ruff==0.16.6",
 ]
 
+[tool.uv]
+# The one place the uv version is stated: uv refuses to run on anything else, and
+# CI reads it with `version-file: pyproject.toml`. frontend/../Dockerfile's
+# `ghcr.io/astral-sh/uv:<tag>` cannot read a file, so it restates this — keep the
+# two in step; this field leads.
+required-version = "==0.12.11"
+
 [tool.mypy]
 strict = true
 exclude = ["^frontend/", "^\\.venv/"]

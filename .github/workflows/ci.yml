@@ -11,11 +11,17 @@ on:
 permissions:
   contents: read
 
+# A second push supersedes the first: no stale run racing the new one to report.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # Actions pinned by commit SHA, not moving major tags — the tag can be re-pointed,
 # the SHA cannot. The trailing comment carries the human-readable version.
 jobs:
   backend:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     env:
       # Integration tests hit a real Postgres (testing.md: never mock the DB).
       DATABASE_URL: postgresql+asyncpg://app:app@localhost:5432/app
@@ -34,9 +40,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          # Same uv as the Dockerfile; without `version` the action installs
-          # whatever is latest that day (dependency audit: unpinned CI tool).
-          version: "0.12.11"
+          # Read from [tool.uv] required-version — never restated here. Without a
+          # version the action installs whatever is latest that day.
+          version-file: pyproject.toml
           enable-cache: true
       # --locked: fail if uv.lock disagrees with pyproject instead of re-resolving.
       - run: uv sync --locked --all-extras
@@ -48,9 +54,7 @@ jobs:
 
   frontend:
     runs-on: ubuntu-24.04
-    defaults:
-      run:
-        working-directory: frontend
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -58,34 +62,31 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      # --ignore-scripts: no lifecycle scripts from third-party packages run in CI.
-      - run: npm ci --ignore-scripts
-      - name: Lint + format + types + tests (with coverage threshold)
-        run: npm run lint && npm run format:check && npm run typecheck && npm run test:coverage
-      - run: npm run build
+      # frontend-install is npm ci --ignore-scripts: no lifecycle scripts from
+      # third-party packages run in CI. frontend-check is what `make check` runs.
+      - run: make frontend-install frontend-check frontend-build
 
   audit:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          version: "0.12.11"
+          version-file: pyproject.toml
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
-      - name: Known-vulnerability scan (Python)
-        # uv audit reads uv.lock and queries OSV; non-zero exit on any finding.
-        run: uv audit --locked --no-dev --preview-features audit-command
-      - name: Known-vulnerability scan (npm)
-        if: ${{ hashFiles('frontend/package-lock.json') != '' }}
-        run: cd frontend && npm audit --audit-level=high
+      # uv audit reads uv.lock and queries OSV, then npm audit reads
+      # package-lock.json; non-zero exit on any finding.
+      - run: make audit
 
   docker:
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
       # Build only — proves the images still build; no registry push.
       # `make env` generates the secrets compose refuses to run without.
-      - run: make env && docker compose build
+      - run: make env docker-build
