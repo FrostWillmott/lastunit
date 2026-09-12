@@ -10,6 +10,20 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — A declined card keeps the hold; only the sale's end takes it away
+Observed during the runtime check and previously undocumented: paying with the
+declining test card leaves the order `pending` and the reservation `held`, so
+the unit stays in the buyer's cart and a second attempt with a good card
+completes the same order. Keeping it is deliberate — a bank's refusal is not a
+decision by the buyer to give up the cart, and taking the unit away on the first
+decline would hand it to someone else while the buyer reaches for another card.
+The hold is still bounded by the same ten minutes and by the sale's end, so
+nothing is held indefinitely, and `UNIQUE (kind, entity_id)` on the outbox means
+the retry cannot produce a second letter. Recorded because "decline" reads like
+a terminal state and the next reader would reasonably assume the unit returns to
+the showcase at once; it does not. Written up in README's State section under
+accepted edge cases.
+
 ## 2026-09-12 — A backgrounded storefront re-syncs on focus, the tick is left alone
 The runtime check measured a hidden tab still showing a sale as upcoming 27s
 after it had opened: the storefront derives the phase from
