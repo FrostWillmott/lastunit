@@ -18,6 +18,14 @@ updates:
       - /frontend
     schedule:
       interval: weekly
+    ignore:
+      # Node's major lives in .nvmrc, and the image must satisfy that floor
+      # (engine-strict enforces it during the image build). A major here alone
+      # would split the one source in two, so moving Node is a deliberate,
+      # coordinated change: .nvmrc + engines + this tag together. Revisit when
+      # the next line reaches Active LTS — 26 is LTS from 2026-10-28.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: uv
     directory: /
@@ -40,3 +48,10 @@ updates:
     groups:
       npm-minor-and-patch:
         update-types: ["minor", "patch"]
+    ignore:
+      # @types/node's major tracks the runtime, not the newest release: typing
+      # the frontend against Node 26 APIs while .nvmrc says 24 is how a build
+      # passes locally and fails on a runtime that lacks them. It moves with
+      # .nvmrc; minors and patches still flow.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]

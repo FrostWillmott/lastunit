@@ -10,6 +10,15 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Node stays on 24 (Active LTS); its major is not a Dependabot decision
+Dependabot opened `node:24-alpine` → `26-alpine` and `@types/node` 24 → 26. Node 24
+is the Active LTS line until 2026-10-20 and 26 only becomes LTS on 2026-10-28, so
+both were closed rather than merged. More importantly the image tag alone is not
+where Node's version lives: `.nvmrc` is, and `engine-strict` holds the image to that
+floor, so a major has to move `.nvmrc`, `engines` and the tag in one change.
+`dependabot.yml` now ignores majors for `node` and `@types/node` (minors and patches
+still flow) — revisit after 2026-10-28 as a single coordinated bump.
+
 ## 2026-09-12 — CI conventions are a rule module, `ci-pipeline.md`
 The three CI defects found today were each a different class (workflow-file error,
 job environment not matching its command, undeclared tool), so the lesson is a
