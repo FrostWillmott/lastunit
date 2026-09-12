@@ -34,8 +34,10 @@ The work was split across models on purpose, in separate sessions:
   scaffold and the plan (`docs/plan.md`), then every independent review —
   `docs/plan-audit-2026-09-10.md` and `docs/code-audit-2026-09-12.md`, which
   also carries the security review.
-- **DeepSeek V4 Pro** — the implementation: stages 0-8 and the docs, reviewing
-  its own work after each stage, plus the fixes each audit asked for.
+- **DeepSeek V4 Pro** — the implementation: stages 0-8 and the docs, plus the
+  fixes each audit asked for. It reviewed its own work as it went by running
+  `/code-review`, which executes as a separate agent in a session of its own —
+  eleven runs across the three stage-building sessions.
 - **Claude Opus 5** — the two jobs that meant observing the running system from
   outside: repairing a CI pipeline that had been failing unnoticed, and the
   end-to-end runtime check (`docs/verification-2026-09-12.md`), which reads
