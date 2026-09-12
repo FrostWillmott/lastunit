@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 from pytest import MonkeyPatch
 from sqlalchemy import func, select
 
 from app import seed
 from app.db import SessionFactory
 from app.models.enums import UserRole
+from app.models.sale import Sale
 from app.models.user import User
-from app.seed import seed_shop_user
+from app.seed import DEMO_SALE_QUANTITY, DEMO_SALE_TITLE, seed_demo_sale, seed_shop_user
 from app.services.auth import register, verify_password
 
 
@@ -66,3 +69,21 @@ async def test_main_skips_seed_in_prod(monkeypatch: MonkeyPatch) -> None:
     async with SessionFactory() as session:
         count = await session.scalar(select(func.count()).select_from(User))
         assert count == 0
+
+
+async def test_seed_demo_sale_creates_one_sale_starting_soon() -> None:
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+
+    await seed_demo_sale(now)
+    await seed_demo_sale(now)  # re-running must not add a second sale
+
+    async with SessionFactory() as session:
+        sales = list((await session.scalars(select(Sale).order_by(Sale.id))).all())
+
+    assert len(sales) == 1
+    sale = sales[0]
+    assert sale.title == DEMO_SALE_TITLE
+    assert sale.quantity == DEMO_SALE_QUANTITY
+    assert sale.available == DEMO_SALE_QUANTITY
+    assert sale.starts_at == now + timedelta(minutes=1)
+    assert sale.ends_at > sale.starts_at
