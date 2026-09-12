@@ -29,3 +29,6 @@ def _test_database_url() -> str:
 # at the test database (never the developer's default). Both the unit and
 # integration suites import this conftest.
 os.environ.setdefault("DATABASE_URL", _test_database_url())
+# The webhook secret has no default (config-hygiene); give tests a fixed value
+# so Settings() never falls back to the developer's shell export.
+os.environ.setdefault("PAYSTUB_WEBHOOK_SECRET", "test-secret")
