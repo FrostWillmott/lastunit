@@ -10,6 +10,18 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Demo sale is seeded, keyed by title, re-anchored when it ends
+`make seed`/the entrypoint also create a demo sale (5 units, 99.00, Europe/Moscow)
+starting a minute after the seed, so `make up` shows a live flash sale. It is
+idempotent by `sales.title` and re-anchored: if the previous demo sale's window
+has passed, a fresh one is created, so a later start still shows a live sale and
+ended demo sales accumulate as terminal rows. Keying on the user-writable title
+(no natural key, no UNIQUE constraint) is a deliberate demo-only simplification —
+seeding runs once at startup in the single-process topology, so the check-then-act
+race is unreachable, and the demo sale is not an application invariant worth a
+migration. A shop creating a sale literally named "Demo flash sale" would suppress
+re-seeding.
+
 ## 2026-09-11 — Realtime uses native EventSource, not VueUse useEventSource
 `useEventSource` exposes only "latest value" refs (its `event`/`data` are shallowRefs),
 so watching the event name drops two consecutive same-named events — two `stock_changed`

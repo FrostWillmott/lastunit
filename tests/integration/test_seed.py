@@ -10,7 +10,14 @@ from app.db import SessionFactory
 from app.models.enums import UserRole
 from app.models.sale import Sale
 from app.models.user import User
-from app.seed import DEMO_SALE_QUANTITY, DEMO_SALE_TITLE, seed_demo_sale, seed_shop_user
+from app.seed import (
+    DEMO_SALE_DURATION,
+    DEMO_SALE_QUANTITY,
+    DEMO_SALE_START_IN,
+    DEMO_SALE_TITLE,
+    seed_demo_sale,
+    seed_shop_user,
+)
 from app.services.auth import register, verify_password
 
 
@@ -67,23 +74,45 @@ async def test_main_skips_seed_in_prod(monkeypatch: MonkeyPatch) -> None:
     await seed.main()
 
     async with SessionFactory() as session:
-        count = await session.scalar(select(func.count()).select_from(User))
-        assert count == 0
+        user_count = await session.scalar(select(func.count()).select_from(User))
+        sale_count = await session.scalar(select(func.count()).select_from(Sale))
+        assert user_count == 0
+        assert sale_count == 0
 
 
-async def test_seed_demo_sale_creates_one_sale_starting_soon() -> None:
+async def test_seed_demo_sale_creates_when_none() -> None:
     now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
 
     await seed_demo_sale(now)
-    await seed_demo_sale(now)  # re-running must not add a second sale
 
     async with SessionFactory() as session:
-        sales = list((await session.scalars(select(Sale).order_by(Sale.id))).all())
-
-    assert len(sales) == 1
-    sale = sales[0]
+        sale = await session.scalar(select(Sale))
+    assert sale is not None
     assert sale.title == DEMO_SALE_TITLE
     assert sale.quantity == DEMO_SALE_QUANTITY
     assert sale.available == DEMO_SALE_QUANTITY
-    assert sale.starts_at == now + timedelta(minutes=1)
-    assert sale.ends_at > sale.starts_at
+    assert sale.starts_at == now + DEMO_SALE_START_IN
+
+
+async def test_seed_demo_sale_is_noop_while_live() -> None:
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+
+    await seed_demo_sale(now)
+    await seed_demo_sale(now + DEMO_SALE_DURATION / 2)
+
+    async with SessionFactory() as session:
+        count = await session.scalar(select(func.count()).select_from(Sale))
+    assert count == 1
+
+
+async def test_seed_demo_sale_reanchors_after_end() -> None:
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+
+    await seed_demo_sale(now)
+    after_end = now + DEMO_SALE_START_IN + DEMO_SALE_DURATION + timedelta(minutes=1)
+    await seed_demo_sale(after_end)
+
+    async with SessionFactory() as session:
+        sales = list((await session.scalars(select(Sale).order_by(Sale.id))).all())
+    assert len(sales) == 2
+    assert sales[1].starts_at == after_end + DEMO_SALE_START_IN
