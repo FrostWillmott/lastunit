@@ -10,6 +10,17 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Node floor is 24.15.0, enforced by `engine-strict`
+`.nvmrc` (repo root, so `nvm use` works from there) pins `24.15.0`; CI reads it via
+`node-version-file` and `frontend/package.json` repeats it in `engines` with
+`frontend/.npmrc` setting `engine-strict=true`, so `npm ci` refuses an old Node
+up front instead of failing later inside eslint or vitest. The exact patch is not
+cosmetic: `abbrev` and `nopt` in the lockfile require `^24.15.0`, so a plain `24`
+would resolve to an installed 24.2.0 locally and still break. `.npmrc` is copied
+into `frontend/Dockerfile` so the image is held to the same floor; its base digest
+is currently Node 24.20.0. Exact pins match how the repo already pins uv and image
+digests — bumping the floor stays a visible one-line commit.
+
 ## 2026-09-12 — The shop dashboard refetches on `sale_stats`, not `order_status`
 Scoping `order_status` to the buyer who owns the order (a privacy fix) cut the shop
 dashboard off: it subscribed to that event, and a settled payment fires no stock
