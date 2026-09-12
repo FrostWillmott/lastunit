@@ -22,6 +22,10 @@ dev = [
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=7.1.0",
+    # Exact pin, and it must match `rev` for ruff-pre-commit in
+    # .pre-commit-config.yaml: a floating linter means CI can fail on the day a
+    # new rule lands, and pre-commit disagreeing with `make lint` is worse.
+    "ruff==0.16.6",
 ]
 
 [tool.mypy]
