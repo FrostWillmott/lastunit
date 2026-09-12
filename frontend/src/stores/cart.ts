@@ -55,6 +55,22 @@ function persistCheckouts(checkouts: Record<number, Checkout>): void {
   }
 }
 
+// On a 409 the reservation already has an order (created in another tab, or
+// before a reload, under a different idempotency key); adopt that order instead
+// of failing, so the buyer can still pay from this tab.
+async function createOrAdoptOrder(reservationId: number, key: string): Promise<number> {
+  try {
+    return (await api.createOrder(reservationId, key)).id
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 409) {
+      const orders = await api.listOrders()
+      const existing = orders.find((o) => o.reservation_id === reservationId)
+      if (existing) return existing.id
+    }
+    throw e
+  }
+}
+
 export const useCartStore = defineStore('cart', () => {
   const cart = ref<Cart | null>(null)
   const serverOffset = ref<number | null>(null)
@@ -100,8 +116,7 @@ export const useCartStore = defineStore('cart', () => {
     checkout.outcome = null
     try {
       if (checkout.orderId === null) {
-        const order = await api.createOrder(reservationId, checkout.key)
-        checkout.orderId = order.id
+        checkout.orderId = await createOrAdoptOrder(reservationId, checkout.key)
         persistCheckouts(checkouts.value)
       }
       checkout.outcome = (await api.pay(checkout.orderId, cardNumber)).status
