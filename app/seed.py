@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.clock import PostgresClock
 from app.config import Settings
@@ -45,6 +45,12 @@ async def seed_demo_sale(now: datetime) -> None:
     with only a long-ended sale.
     """
     async with SessionFactory() as session:
+        # Serialize concurrent seeds (the entrypoint plus a manual `make seed`,
+        # or two scaled workers) so the check-then-act can't create two live demo
+        # sales; the lock is released when create_sale commits.
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext('demo-seed'))")
+        )
         live = await session.scalar(
             select(Sale).where(Sale.title == DEMO_SALE_TITLE, Sale.ends_at > now)
         )

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 from pytest import MonkeyPatch
@@ -116,3 +117,13 @@ async def test_seed_demo_sale_reanchors_after_end() -> None:
         sales = list((await session.scalars(select(Sale).order_by(Sale.id))).all())
     assert len(sales) == 2
     assert sales[1].starts_at == after_end + DEMO_SALE_START_IN
+
+
+async def test_seed_demo_sale_concurrent_is_single_sale() -> None:
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+
+    await asyncio.gather(seed_demo_sale(now), seed_demo_sale(now))
+
+    async with SessionFactory() as session:
+        count = await session.scalar(select(func.count()).select_from(Sale))
+    assert count == 1
