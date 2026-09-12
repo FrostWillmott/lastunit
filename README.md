@@ -48,7 +48,7 @@ it on `localhost:8001/docs`.
 
 | Variable | What it changes |
 |---|---|
-| `APP_ENV` | `dev` enables API docs, `prod` disables them (later: Secure cookies). |
+| `APP_ENV` | `dev` enables API docs; `prod` disables them and marks the session cookie Secure. |
 | `LOG_LEVEL` | Backend app log verbosity. |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Database role, password (generated), name. |
 | `SESSION_TTL_DAYS` | Login-cookie lifetime, in days. |
@@ -84,6 +84,10 @@ test. Rows are updated as each stage lands.
 | 8 | Exactly one order email | `test_order_email_sent_exactly_once` | proven |
 | 9 | Sale end clears holds, removes unsold, notifies owners | `test_sale_end_clears_holds_and_notifies` | proven |
 | T11 | Two open tabs stay in sync | `test_stock_event_reaches_second_client` (2 clients) + `useRealtime.test.ts` fan-out + `sales.test.ts` `applies two successive stock events and reflects each` | proven |
+
+Accepted edge case: a payment declined after a sale has ended clears the
+reservation and cancels the order without returning the unit — `available` is
+already 0 at that point, so there is nothing to return (see DECISIONS.md).
 
 ## Decisions worth knowing
 
