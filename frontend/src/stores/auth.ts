@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { api } from '../api/client'
 import type { User } from '../api/types'
+import { closeRealtime, openRealtime } from '../composables/useRealtime'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -21,6 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(email: string, password: string): Promise<void> {
     user.value = await api.login(email, password)
     initialized.value = true
+    openRealtime()
   }
 
   async function fetchMe(): Promise<void> {
@@ -36,6 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function logout(): Promise<void> {
     await api.logout()
     user.value = null
+    closeRealtime()
   }
 
   return {
