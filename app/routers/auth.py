@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.clock import Clock
@@ -26,6 +26,12 @@ class CredentialsRequest(BaseModel):
         return value.strip().lower()
 
 
+class RegisterRequest(CredentialsRequest):
+    # Minimum length applies only at registration: a too-short password on
+    # login must 401 like any wrong credential, not fail schema validation.
+    password: str = Field(min_length=8)
+
+
 class UserResponse(BaseModel):
     id: int
     email: str
@@ -34,7 +40,7 @@ class UserResponse(BaseModel):
 
 @router.post("/register", status_code=201, response_model=UserResponse)
 async def register(
-    body: CredentialsRequest,
+    body: RegisterRequest,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
     try:

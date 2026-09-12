@@ -39,9 +39,18 @@ async def test_register_returns_user_and_duplicate_is_409() -> None:
         # rejected as a duplicate.
         duplicate = await client.post(
             "/api/auth/register",
-            json={"email": "Buyer@Example.com", "password": "another"},
+            json={"email": "Buyer@Example.com", "password": "another-pass"},
         )
         assert duplicate.status_code == 409
+
+
+async def test_register_rejects_short_password() -> None:
+    async with _client() as client:
+        response = await client.post(
+            "/api/auth/register",
+            json={"email": "short@example.com", "password": "short"},
+        )
+        assert response.status_code == 422
 
 
 async def test_login_sets_cookie_and_me_returns_user() -> None:
