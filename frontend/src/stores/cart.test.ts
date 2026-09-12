@@ -117,6 +117,27 @@ describe('cart store', () => {
     expect(payCalls).toHaveLength(2)
   })
 
+  it('adopts the existing order when creating it 409s (second tab)', async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(ok(409, { detail: 'reservation already has an order' }))
+      .mockResolvedValueOnce(ok(200, [ORDER]))
+      .mockResolvedValueOnce(ok(200, { status: 'approved' }))
+      .mockResolvedValueOnce(ok(200, { server_now: '2026-01-01T00:30:00Z', items: [] }))
+    vi.stubGlobal('fetch', fetch)
+    const store = useCartStore()
+
+    await store.pay(1, '4242 0000')
+
+    expect(store.checkoutOf(1)?.outcome).toBe('approved')
+    expect(store.checkoutOf(1)?.orderId).toBe(10)
+    // The order was created once (the 409 was adopted, not retried)...
+    const orderCalls = fetch.mock.calls.filter(([url]) => url === '/api/orders')
+    expect(orderCalls).toHaveLength(1)
+    // ...and the existing order was paid.
+    expect(fetch).toHaveBeenCalledWith('/api/orders/10/pay', expect.any(Object))
+  })
+
   it('a pending outcome leaves the item in the cart', async () => {
     const fetch = vi
       .fn()
