@@ -21,14 +21,27 @@ short window, and there are more buyers than stock. A buyer reserves one unit
 and revenue update live. Spec: `docs/acceptance.md` (Russian). Plan:
 `docs/plan.md`.
 
+## Tools and models
+
 Started from a scaffolding template — Claude Code's `workflow-scaffolding`
-skill plus a Vite + Vue 3 + TypeScript frontend skeleton. Built with Claude
-Code (CLI), with three models on different parts: the implementation
-(stages 0-8) was written by deepseek-v4-pro on a non-Anthropic endpoint; the
-scaffold, plan and audit sessions used Claude Fable 5.1; the end-to-end runtime
-check of the assembled app (`docs/verification-2026-09-12.md`) and the fixes it
-produced used Claude Opus 5. The full per-session tool/model record lives in
-`agent-sessions/`.
+skill plus a Vite + Vue 3 + TypeScript frontend skeleton.
+
+Built with Claude Code: the repository's own conventions live in `AGENTS.md`,
+`.claude/rules/` and `.claude/skills/`, and the agent reads them every session.
+The work was split across models on purpose, in separate sessions:
+
+- **Claude Fable 5.1** — the plan (`docs/plan.md`) and the two independent
+  audits (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`).
+- **DeepSeek V4 Pro** — implemented the plan and the docs.
+- **Claude Opus 5** — the runtime verification
+  (`docs/verification-2026-09-12.md`), which reads screenshots and so can check
+  what the app actually renders — something V4 Pro cannot do — and the fixes
+  that followed from it.
+
+The split is the point: a mistake has to survive a different model in a
+different session before it reaches the repository, and both audits found
+defects that the implementer's own review had passed. The full per-session
+tool/model record lives in `agent-sessions/`.
 
 ## Stack
 
