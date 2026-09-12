@@ -1,6 +1,10 @@
 # Backend image. Base pinned by digest (dependency-hygiene audit: floating tags
 # drift silently). Refresh with:
 #   curl -s https://hub.docker.com/v2/repositories/library/python/tags/3.12-slim | jq .digest
+# The minor must match `.python-version`, which is where the interpreter version
+# is stated and what uv reads locally and in CI. `requires-python` in
+# pyproject.toml is a separate thing: the floor this code supports, not the
+# version we run on. Moving Python means changing all three together.
 FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
 
 # uv, pinned. Copying the binary from the official image avoids a curl|sh step.

@@ -34,6 +34,9 @@ Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
 ## Prerequisites
 
 - Docker with compose — for the database and the local stack.
+- Python 3.12 — pinned in `.python-version`; uv reads it and fetches the
+  interpreter, so no system Python is required. `requires-python` in
+  `pyproject.toml` is the separate, lower floor this code supports.
 - uv >= 0.12.11 — Python dependency manager. The floor is `[tool.uv] required-version`
   in `pyproject.toml`; uv enforces it itself and CI reads it from there. A newer uv
   is fine. The Dockerfile names one exact version instead, for reproducible images.

@@ -10,6 +10,19 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Python is pinned in `.python-version`; the runtime stays 3.12
+Dependabot's `python:3.12-slim` → `3.14-slim` exposed a bigger problem: the
+interpreter was pinned nowhere, so three environments ran three versions — CI on
+the runner's system 3.12.3, local dev on 3.13.9, the image on 3.12. Tested-on,
+developed-on and deployed-on were all different. `.python-version` now states it
+once (3.12); uv reads it locally and in CI and fetches the interpreter, so no
+system Python is needed. `requires-python = ">=3.12"` stays what it always was —
+the floor this code supports, not the version we run — and ruff's
+`target-version = "py312"` stays a modernization floor. 3.12 over 3.13/3.14
+because README, AGENTS and the spec all describe 3.12 and CI already tested it:
+no functional gain was on offer, only documentation churn on a submission.
+`dependabot.yml` ignores python major and minor (patch and digest still flow).
+
 ## 2026-09-12 — Node stays on 24 (Active LTS); its major is not a Dependabot decision
 Dependabot opened `node:24-alpine` → `26-alpine` and `@types/node` 24 → 26. Node 24
 is the Active LTS line until 2026-10-20 and 26 only becomes LTS on 2026-10-28, so
