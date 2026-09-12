@@ -35,7 +35,7 @@ async def create_order(
 ) -> OrderResponse:
     try:
         order = await orders_service.create_order(
-            db, body.reservation_id, user.id, idempotency_key, await clock.now()
+            db, body.reservation_id, user.id, idempotency_key, await clock.now(db)
         )
     except orders_service.ReservationNotFoundError:
         raise HTTPException(status_code=404, detail="reservation not found") from None

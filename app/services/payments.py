@@ -133,27 +133,38 @@ async def apply_payment_result(
 
     new_order_status: str
     if outcome == PaymentStatus.APPROVED.value:
-        await db.execute(
-            update(Order)
-            .where(Order.id == order_id, Order.status == OrderStatus.PENDING.value)
-            .values(status=OrderStatus.PAID.value)
-        )
-        await db.execute(
-            update(Reservation)
-            .where(
-                Reservation.id == order.reservation_id,
-                Reservation.status == ReservationStatus.PAYING.value,
+        paid = (
+            await db.execute(
+                update(Order)
+                .where(Order.id == order_id, Order.status == OrderStatus.PENDING.value)
+                .values(status=OrderStatus.PAID.value)
+                .returning(Order.id)
             )
-            .values(status=ReservationStatus.SOLD.value)
-        )
-        # Outbox: one email per order, written in the same transaction.
-        buyer = (
-            await db.execute(select(User).where(User.id == order.user_id))
         ).scalar_one_or_none()
-        await notifications.enqueue_order_paid(
-            db, order_id, buyer.email if buyer else "", order.amount_minor
-        )
-        new_order_status = OrderStatus.PAID.value
+        if paid is None:
+            # The order was already settled (cancelled) while this payment was
+            # pending. The stub charged the buyer, but we must not email "paid"
+            # or sell a reservation that is no longer paying — report the order's
+            # real status instead.
+            current = await db.scalar(select(Order.status).where(Order.id == order_id))
+            new_order_status = current if current is not None else order.status
+        else:
+            await db.execute(
+                update(Reservation)
+                .where(
+                    Reservation.id == order.reservation_id,
+                    Reservation.status == ReservationStatus.PAYING.value,
+                )
+                .values(status=ReservationStatus.SOLD.value)
+            )
+            # Outbox: one email per order, written in the same transaction.
+            buyer = (
+                await db.execute(select(User).where(User.id == order.user_id))
+            ).scalar_one_or_none()
+            await notifications.enqueue_order_paid(
+                db, order_id, buyer.email if buyer else "", order.amount_minor
+            )
+            new_order_status = OrderStatus.PAID.value
     else:  # declined — return to the cart (or clear if the sale already ended).
         sale = (
             await db.execute(select(Sale).where(Sale.id == order.sale_id))
@@ -173,7 +184,8 @@ async def apply_payment_result(
         )
         if new_status == ReservationStatus.CLEARED.value:
             # The sale has ended and the reservation is cleared, so the order can
-            # never be paid again — cancel it instead of leaving it stuck pending.
+            # never be paid again — cancel it and notify the owner, mirroring the
+            # sale-end cleanup path.
             await db.execute(
                 update(Order)
                 .where(
@@ -181,6 +193,12 @@ async def apply_payment_result(
                     Order.status == OrderStatus.PENDING.value,
                 )
                 .values(status=OrderStatus.CANCELLED.value)
+            )
+            buyer = (
+                await db.execute(select(User).where(User.id == order.user_id))
+            ).scalar_one_or_none()
+            await notifications.enqueue_cart_cleared(
+                db, order.reservation_id, buyer.email if buyer else ""
             )
             new_order_status = OrderStatus.CANCELLED.value
         else:

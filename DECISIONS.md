@@ -10,6 +10,16 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Clock reads now() through the request's own session
+`PostgresClock.now()` used to open a second pooled connection per call, so a
+burst of authenticated requests (each pinning its request session's connection
+for the uncommitted auth SELECT) could exhaust the pool and 500 right as a sale
+opens. `now()` now takes an optional session and the request paths pass their
+own `db`, so the clock read reuses the request's connection; the scheduler passes
+its loop session, and the seed still opens its own. Semantically `now()` becomes
+the request transaction's start time — fine for a demo and consistent within a
+request. Tests inject `FrozenClock`, which ignores the session.
+
 ## 2026-09-12 — Demo sale is seeded, keyed by title, re-anchored when it ends
 `make seed`/the entrypoint also create a demo sale (5 units, 99.00, Europe/Moscow)
 starting a minute after the seed, so `make up` shows a live flash sale. It is

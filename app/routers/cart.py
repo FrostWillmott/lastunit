@@ -40,7 +40,9 @@ async def release(
     user: User = Depends(current_user),
 ) -> Response:
     try:
-        await cart.release(db, reservation_id, user.id, await clock.now(), broadcaster)
+        await cart.release(
+            db, reservation_id, user.id, await clock.now(db), broadcaster
+        )
     except cart.ReservationNotFoundError:
         raise HTTPException(status_code=404, detail="reservation not found") from None
     except cart.NotHeldError:
@@ -54,7 +56,7 @@ async def view_cart(
     clock: Clock = Depends(get_clock),
     user: User = Depends(current_user),
 ) -> CartResponse:
-    now = await clock.now()
+    now = await clock.now(db)
     items = await cart.list_cart(db, user.id, now)
     return CartResponse(
         server_now=now,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import and_, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -199,8 +199,13 @@ async def list_cart(
         .join(Sale, Sale.id == Reservation.sale_id)
         .where(
             Reservation.user_id == user_id,
-            Reservation.status == ReservationStatus.HELD.value,
-            Reservation.expires_at > now,
+            or_(
+                and_(
+                    Reservation.status == ReservationStatus.HELD.value,
+                    Reservation.expires_at > now,
+                ),
+                Reservation.status == ReservationStatus.PAYING.value,
+            ),
         )
         .order_by(Reservation.expires_at)
     )

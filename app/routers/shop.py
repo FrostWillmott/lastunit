@@ -42,7 +42,7 @@ async def sale_stats(
     clock: Clock = Depends(get_clock),
 ) -> SaleStatsResponse:
     try:
-        stats = await shop_service.sale_stats(db, sale_id, await clock.now())
+        stats = await shop_service.sale_stats(db, sale_id, await clock.now(db))
     except shop_service.SaleNotFoundError:
         raise HTTPException(status_code=404, detail="sale not found") from None
     return SaleStatsResponse(
@@ -81,6 +81,6 @@ async def check_payment(
         ) from None
     if status in ("approved", "declined"):
         await payments_service.apply_payment_result(
-            db, reference, status, await clock.now(), broadcaster
+            db, reference, status, await clock.now(db), broadcaster
         )
     return {"status": status}

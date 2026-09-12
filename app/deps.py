@@ -41,7 +41,7 @@ async def current_user(
     token = request.cookies.get(SESSION_COOKIE)
     if token is None:
         raise HTTPException(status_code=401, detail="not authenticated")
-    user = await auth.user_for_token(db, token, await clock.now())
+    user = await auth.user_for_token(db, token, await clock.now(db))
     if user is None:
         raise HTTPException(status_code=401, detail="session expired")
     return user

@@ -88,7 +88,21 @@ async def end_ended_sales(
             )
         )
         for reservation in held.scalars().all():
-            reservation.status = ReservationStatus.CLEARED.value
+            # Guarded transition: a hold that became paying concurrently is left
+            # alone (it settles later), never overwritten to cleared.
+            cleared = (
+                await session.execute(
+                    update(Reservation)
+                    .where(
+                        Reservation.id == reservation.id,
+                        Reservation.status == ReservationStatus.HELD.value,
+                    )
+                    .values(status=ReservationStatus.CLEARED.value)
+                    .returning(Reservation.id)
+                )
+            ).scalar_one_or_none()
+            if cleared is None:
+                continue
             await session.execute(
                 update(Order)
                 .where(
@@ -124,7 +138,7 @@ async def loop(
     while True:
         try:
             async with session_factory() as session:
-                now = await clock.now()
+                now = await clock.now(session)
                 expired = await run_once(session, now, broadcaster)
                 ended = await end_ended_sales(session, now, broadcaster)
                 sent = await notifications.send_pending(session, now)
