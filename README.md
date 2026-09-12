@@ -88,14 +88,22 @@ make test-integration  # integration tests against a real Postgres
 Unit tests (`tests/unit/`) need no I/O; integration tests (`tests/integration/`)
 hit the real Postgres.
 
+A green `make check` says the suite passes, not that the assembled app works.
+The latter was checked separately by driving the running stack through a browser:
+[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md).
+
 ## State
 
 Every "Ожидаемое поведение" bullet in `docs/acceptance.md` maps to one named
 test. Rows are updated as each stage lands.
 
+All nine bullets were also exercised against the running stack in a browser on
+2026-09-12 — what was driven, what was measured and what was found is in
+[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md).
+
 | # | Expected behaviour | Proving test | Status |
 |---|---|---|---|
-| 1 | No purchase before start; opens for everyone at start | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed` | partially proven |
+| 1 | No purchase before start; opens for everyone at start | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed`, `test_create_sale_broadcasts_sale_status_to_open_clients`, `StorefrontView.test.ts` (button disabled before start, refetch when the tab returns) | proven |
 | 2 | Stock changes live on every open client | `test_stock_event_reaches_second_client`, `test_sse_smoke_real_server`, `test_payment_result_broadcasts_sale_stats_to_everyone` (shop figures) | proven |
 | 3 | Last unit sells to one of two buyers | `test_last_unit_two_buyers_one_wins` | proven |
 | 4 | Hold expires after 10 min, stock returns, seen live | `test_hold_expires_returns_stock`, `test_hold_expiry_broadcasts` | proven |
@@ -106,9 +114,24 @@ test. Rows are updated as each stage lands.
 | 9 | Sale end clears holds, removes unsold, notifies owners | `test_sale_end_clears_holds_and_notifies` | proven |
 | T11 | Two open tabs stay in sync | `test_stock_event_reaches_second_client` (2 clients) + `useRealtime.test.ts` fan-out + `sales.test.ts` `applies two successive stock events and reflects each` | proven |
 
-Accepted edge case: a payment declined after a sale has ended clears the
-reservation and cancels the order without returning the unit — `available` is
-already 0 at that point, so there is nothing to return (see DECISIONS.md).
+How bullet 1 is met, precisely: the ban before the start is enforced by the
+backend (`409` on reserve), so it holds whatever a client believes the time is.
+The storefront's own gate is a countdown anchored to the backend — each response
+carries `server_now` and the client keeps the offset — so a viewer whose own
+clock is wrong still sees the sale open at the right instant (checked with a
+browser clock set 10 minutes fast). What is *not* claimed is simultaneity to the
+second: the flip is a client-side timer, and a browser throttles timers in a
+backgrounded tab, so such a tab can lag until it is focused again, at which
+point it refetches and re-anchors.
+
+Accepted edge cases:
+
+- A payment declined after a sale has ended clears the reservation and cancels
+  the order without returning the unit — `available` is already 0 at that point,
+  so there is nothing to return (see DECISIONS.md).
+- A card declined *during* a live sale leaves the hold in place: the order stays
+  `pending`, the unit stays in the buyer's cart for the rest of the ten minutes,
+  and paying again with another card completes it. Still one email per order.
 
 ## Decisions worth knowing
 
