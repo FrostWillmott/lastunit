@@ -4,16 +4,29 @@ import asyncio
 import hashlib
 import hmac
 import json
-import os
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+from pydantic_settings import BaseSettings
 
 # Card outcome table (last four digits): …0000 approved, …0002 declined,
 # …9995 pending (hang). Anything else declines.
 WEBHOOK_ATTEMPTS = 3
 WEBHOOK_BACKOFF_SECONDS = 0.1
+
+
+class Settings(BaseSettings):
+    """The single place the paystub reads its environment (config-hygiene)."""
+
+    # The empty string is a sentinel rejected below; `make env` generates the value.
+    paystub_webhook_secret: str = ""
+
+    @model_validator(mode="after")
+    def _require_webhook_secret(self) -> Settings:
+        if not self.paystub_webhook_secret:
+            raise ValueError("PAYSTUB_WEBHOOK_SECRET must be set — run `make env`")
+        return self
 
 
 class PaymentCreateRequest(BaseModel):
@@ -104,7 +117,7 @@ def create_app(
     webhook_secret: str | None = None,
 ) -> FastAPI:
     client = http_client or httpx.AsyncClient()
-    secret = webhook_secret or os.environ.get("PAYSTUB_WEBHOOK_SECRET", "dev-secret")
+    secret = webhook_secret or Settings().paystub_webhook_secret
     store: dict[str, _Payment] = {}
 
     app = FastAPI(title="paystub")

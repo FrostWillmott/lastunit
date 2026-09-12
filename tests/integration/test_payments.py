@@ -9,6 +9,7 @@ import httpx
 from sqlalchemy import select
 
 from app.clock import Clock, FrozenClock
+from app.config import Settings
 from app.db import SessionFactory
 from app.main import create_app
 from app.models.enums import OrderStatus, PaymentStatus, ReservationStatus, UserRole
@@ -111,7 +112,9 @@ async def _webhook(
     client: httpx.AsyncClient, reference: str, status: str
 ) -> httpx.Response:
     body = json.dumps({"reference": reference, "status": status}).encode()
-    signature = hmac.new(b"dev-secret", body, hashlib.sha256).hexdigest()
+    signature = hmac.new(
+        Settings().paystub_webhook_secret.encode(), body, hashlib.sha256
+    ).hexdigest()
     return await client.post(
         "/api/payments/webhook",
         content=body,
@@ -224,7 +227,9 @@ async def test_webhook_rejects_malformed_payloads() -> None:
     client, _ = await _setup(paystub)
 
     def sign(body: bytes) -> str:
-        return hmac.new(b"dev-secret", body, hashlib.sha256).hexdigest()
+        return hmac.new(
+            Settings().paystub_webhook_secret.encode(), body, hashlib.sha256
+        ).hexdigest()
 
     async with client:
         for body in (

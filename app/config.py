@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -24,8 +25,19 @@ class Settings(BaseSettings):
     # callback. Compose overrides both to the service names.
     paystub_url: str = "http://localhost:8001"
     public_base_url: str = "http://localhost:8000"
-    paystub_webhook_secret: str = "dev-secret"  # noqa: S105  (demo-internal, shared with the stub)
+    # The empty string is a sentinel, not a usable secret: the validator below
+    # rejects it, so a missing PAYSTUB_WEBHOOK_SECRET fails fast instead of
+    # falling back to a known value. `make env` generates the real value.
+    paystub_webhook_secret: str = ""
     # Demo shop account the seed creates; the reviewer logs into the shop screen
     # with these (not a production secret).
     seed_shop_email: str = "shop@example.com"
     seed_shop_password: str = "shop-password"  # noqa: S105  (demo credential, not a secret)
+
+    @model_validator(mode="after")
+    def _require_webhook_secret(self) -> Settings:
+        if not self.paystub_webhook_secret:
+            raise ValueError(
+                "PAYSTUB_WEBHOOK_SECRET must be set — run `make env` to generate it"
+            )
+        return self
