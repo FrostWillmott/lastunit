@@ -54,6 +54,21 @@ value". The rules below are cheap to follow and expensive to retrofit.
 - Escape hatch: a value that only exists in one environment (e.g. a compose
   healthcheck) is documented in that file with the reason.
 
+## Never print a secret's value into a log or transcript  [MUST]
+Agent sessions are exported to the repository, so anything an agent prints is a
+candidate for publication. `cat .env`, `env`, `docker compose config` and
+`printenv` put live secrets into that record, where neither `.gitignore` nor
+gitleaks protects them — those guard the file, not the transcript.
+- To check a secret is set, print its **name and length**, or compare a hash —
+  never the value. `grep -oE '^[A-Z_]+' .env` answers "which keys exist".
+- To check a value reached the app, assert on behaviour (the service starts, the
+  signature verifies), not on the string.
+- When masking a match in output, mask **every** occurrence in the line, not just
+  the one you matched: trailing context is how the next secret leaks.
+- A secret that did reach a transcript is dead the moment it is rotated, so
+  rotate rather than edit history — but redact it before exporting that
+  transcript, and say in the export that you did.
+
 ## Document the knob, not the mechanism  [PREFER]
 - README has a short "Configuration" table: variable, default, when you would
   change it. Generated from `.env.example` comments is fine.
