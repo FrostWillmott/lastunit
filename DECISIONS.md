@@ -10,6 +10,16 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — ruff is a declared dev dependency, pinned to the pre-commit rev
+`make lint` ran `uv run ruff`, but ruff was declared nowhere — it only worked
+locally because a global `~/.local/bin/ruff` was on PATH, so the first CI run that
+reached the step died with `Failed to spawn: ruff`. It is now in
+`[dependency-groups] dev`, pinned exactly to `0.16.6` to match `rev` for
+ruff-pre-commit: a floating linter lets CI fail on the day a new rule lands, and
+pre-commit disagreeing with `make lint` is worse than either. Bumping the two
+together stays one visible commit. The 0.14.5 → 0.16.6 move needed no config
+changes — `ruff check` and `ruff format --check` stayed clean, no renamed codes.
+
 ## 2026-09-12 — CI never ran: `hashFiles` is illegal in a job-level `if`
 All 33 runs of `ci.yml` since the repo was created failed in 0s with no jobs and
 no logs, because `hashFiles()` is only available in step-level expressions — at
