@@ -351,3 +351,69 @@ guard по времени в переходе; «зависла» = pending и �
 8. Секрет вебхука со значением по умолчанию `dev-secret` в двух местах — оставить
    как демо-удобство (тогда записать в DECISIONS рядом с демо-паролем) или убрать
    дефолт?
+
+## Security review
+
+Отдельный прогон `/security-review` (Claude Code, Claude Fable 5.1) по тому же
+диапазону `efdaea8..HEAD`, уже после fix-first-коммитов (`ab0eaa3`). Метод:
+три параллельных поиска по зонам (auth/API-роутеры; платежи, вебхук, paystub,
+планировщик, инфраструктура; фронтенд и SSE), затем отдельный фильтр ложных
+срабатываний на каждого кандидата с порогом 8/10. Тесты, `*.md` и
+`agent-sessions/` вне области; DoS, rate limiting и хранение секретов на диске
+исключены правилами скилла.
+
+**Результат: ни одного HIGH или MEDIUM-нахождения.** Шесть кандидатов уровня
+Low, каждый отброшен фильтром с оценкой 2/10.
+
+| Кандидат | Место | Почему отброшен |
+|---|---|---|
+| Paystub опубликован на хосте; `POST /payments` с произвольным `callback_url` и `/resolve` без аутентификации | `docker-compose.yml:46-47`, `paystub/main.py:125-156` | Заглушка по дизайну (README, DECISIONS). Подделка вебхука требует pending `provider_ref` (128 бит, отдаётся только роли shop); результат совпадает с вводом карты `…0000`. |
+| SSE-поток не закрывается при logout; `user_id` фиксируется при подключении | `app/routers/events.py:27-32`, `frontend/src/composables/useRealtime.ts` | Payload — только `order_id` и `status`; сторы его не рендерят, а перезапрашивают с текущей cookie. Сценарий требует общий браузер и смену пользователя в одной вкладке без перезагрузки. |
+| `APP_ENV` по умолчанию `dev`: cookie без `Secure`, `/docs` открыт | `app/config.py:17`, `app/routers/auth.py:72` | Env-переменная — доверенное значение; в стеке нет TLS-терминации; переключатель задокументирован в README и `.env.example`. |
+| Register возвращает 409 для занятого email | `app/routers/auth.py:40-45` | Стандартное поведение регистрации; email-верификация невозможна с почтовой заглушкой; утечка — один бит. |
+| Пароль без `min_length` | `app/routers/auth.py:19-26` | Пробел в hardening; стороннего пути атаки нет без brute force (исключён правилами). |
+| httpx логирует URL с `provider_ref` при `check` | `app/main.py:37`, `app/paystub_client.py:49` | Логирование URL считается безопасным; ref уже виден роли shop через `/shop/sales/{id}/stats`. |
+
+### Проверено, дефекта не найдено
+- **Сессии.** `secrets.token_urlsafe(32)`, SHA-256 хеш в БД с UNIQUE, проверка
+  `expires_at` по часам БД, новый токен на каждый login, logout удаляет строку.
+  Cookie `httponly` + `samesite=lax`; CORS-middleware нет, значит cross-site
+  POST/DELETE не несут cookie.
+- **Авторизация.** Каждый мутирующий и приватный маршрут идёт через
+  `current_user` или `require_shop`; `register` жёстко назначает роль BUYER.
+  Все id-параметры (reservation, order) скоупятся по `user_id` в сервисном
+  запросе; ключ идемпотентности защищён `UNIQUE(user_id, idempotency_key)`.
+  `/api/events` резолвит cookie тем же `user_for_token`, `order_status`
+  доставляется только владельцу. Побочный эффект этого скоупа — функциональный,
+  не security: витрина магазина подписывалась на `order_status` и после скоупа
+  перестала видеть оплаты (события склада тут нет — `available` уменьшается ещё
+  на этапе брони). Исправлено отдельным событием `sale_stats` без скоупа, см.
+  DECISIONS и `test_payment_result_broadcasts_sale_stats_to_everyone`.
+- **Платежи.** Вебхук: HMAC-SHA256 по сырому телу, `compare_digest` на bytes.
+  Replay — no-op через guarded `UPDATE … WHERE status='pending'` и partial
+  unique index на `(order_id) WHERE status='pending'`. `amount_minor` берётся из
+  `sale.price_minor`, не от клиента. Номер карты не хранится и не логируется.
+  `callback_url` и URL заглушки — только из `Settings`.
+- **Инъекции.** `text()` только с литералами (`SELECT now()`, advisory lock);
+  `ZoneInfo` отбрасывает `..` и абсолютные пути; email нормализуется и
+  ограничен CHECK/UNIQUE. Во фронтенде нет `v-html`/`innerHTML`; единственный
+  `:href` — константа с `rel="noopener"`; redirect после login обрабатывается
+  vue-router как same-origin путь.
+- **Секреты и сборка.** compose использует `${VAR:?}`, `.env.example` без
+  значений, `.env` не коммитился, `.dockerignore` исключает `.env*`,
+  `loadEnv` с дефолтным префиксом `VITE_`, `sourcemap: false`, CI с
+  `permissions: contents: read` и SHA-пинами, `npm ci --ignore-scripts`.
+- **Seed и prod-guard.** `seed_demo_sale` и демо-пользователь не создаются при
+  `APP_ENV=prod`; `/docs` и `/openapi.json` в prod отключены.
+
+## Последующий ревью (`/code-review`, Claude Opus 5)
+
+Прогон по тем же fix-first-коммитам нашёл два дефекта, внесённых самими
+исправлениями; оба закрыты в этом же проходе.
+
+| Дефект | Место | Исправление |
+|---|---|---|
+| Скоуп `order_status` по покупателю отрезал витрину магазина от живых обновлений sold/revenue/pending | `app/services/payments.py`, `frontend/src/stores/shop.ts` | Дополнительное событие `sale_stats` без скоупа; витрина подписана на него вместо `order_status`. Тест: `test_payment_result_broadcasts_sale_stats_to_everyone` |
+| Повторное чтение брони в `start_payment` было no-op: identity map сессии уже держал устаревший объект, проигравший гонку получал «reservation is not held» | `app/services/payments.py` | `.execution_options(populate_existing=True)` на перечитывающем `select`. Тест: `test_start_payment_with_stale_hold_in_session_reports_pending_payment` (детерминированный, без опоры на планировщик корутин) |
+
+Оба теста проверены «красными» до исправления.
