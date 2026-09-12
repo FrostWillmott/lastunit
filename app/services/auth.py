@@ -15,6 +15,10 @@ from app.models.enums import UserRole
 from app.models.user import User, UserSession
 
 _password_hash = PasswordHash.recommended()  # argon2id
+# Verified when the email is unknown so login takes the same wall-clock time
+# whether or not the account exists — otherwise the response time would reveal
+# which emails are registered.
+_DUMMY_HASH = _password_hash.hash("timing-equalization")
 
 
 class EmailTakenError(Exception):
@@ -96,9 +100,10 @@ async def login(
     ttl: timedelta,
 ) -> tuple[str, User]:
     user = await db.scalar(select(User).where(User.email == email))
-    if user is None or not await asyncio.to_thread(
-        verify_password, password, user.password_hash
-    ):
+    if user is None:
+        await asyncio.to_thread(verify_password, password, _DUMMY_HASH)
+        raise InvalidCredentialsError
+    if not await asyncio.to_thread(verify_password, password, user.password_hash):
         raise InvalidCredentialsError
     token = new_session_token()
     db.add(
