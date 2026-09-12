@@ -40,8 +40,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
-          # Read from [tool.uv] required-version — never restated here. Without a
-          # version the action installs whatever is latest that day.
+          # Read from [tool.uv] required-version — never restated here. That is a
+          # floor, so the action resolves the highest uv satisfying it; without a
+          # version-file it would install whatever is latest regardless.
           version-file: pyproject.toml
           enable-cache: true
       # --locked: fail if uv.lock disagrees with pyproject instead of re-resolving.

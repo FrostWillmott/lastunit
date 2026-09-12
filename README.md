@@ -1,5 +1,7 @@
 # lastunit
 
+[![CI](https://github.com/FrostWillmott/lastunit/actions/workflows/ci.yml/badge.svg)](https://github.com/FrostWillmott/lastunit/actions/workflows/ci.yml)
+
 Flash-sale service: a shop lists a batch of goods at a special price for a
 short window, and there are more buyers than stock. A buyer reserves one unit
 (10-minute hold) and pays through a payment stub; the shop watches stock, sold
@@ -21,7 +23,9 @@ Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
 ## Prerequisites
 
 - Docker with compose — for the database and the local stack.
-- uv — Python dependency manager (Dockerfile and CI pin `0.12.11`).
+- uv >= 0.12.11 — Python dependency manager. The floor is `[tool.uv] required-version`
+  in `pyproject.toml`; uv enforces it itself and CI reads it from there. A newer uv
+  is fine. The Dockerfile names one exact version instead, for reproducible images.
 - Node 24.15.0 — run `nvm install` in the repo root: it reads `.nvmrc`, installs
   that version and switches to it (`nvm use` alone fails when it is missing).
   `npm ci` hard-fails on anything older (`engine-strict` in `frontend/.npmrc`);

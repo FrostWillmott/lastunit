@@ -29,11 +29,13 @@ dev = [
 ]
 
 [tool.uv]
-# The one place the uv version is stated: uv refuses to run on anything else, and
-# CI reads it with `version-file: pyproject.toml`. frontend/../Dockerfile's
-# `ghcr.io/astral-sh/uv:<tag>` cannot read a file, so it restates this — keep the
-# two in step; this field leads.
-required-version = "==0.12.11"
+# The one place the uv version floor is stated. uv refuses to run below it, and
+# CI reads it with `version-file: pyproject.toml`, resolving to the highest
+# release that satisfies it. A floor, not a pin: `uv audit` needs >= 0.12, and
+# contributors should not be blocked from a newer uv. The Dockerfile's
+# `ghcr.io/astral-sh/uv:<tag>` cannot read a file, so it names one exact version
+# for reproducible images — that tag has to satisfy this floor; this field leads.
+required-version = ">=0.12.11"
 
 [tool.mypy]
 strict = true
