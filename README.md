@@ -35,8 +35,10 @@ under `/api`). `.env` is never committed and has no default password: `make env`
 generates the secrets, and `docker compose` refuses to start without them.
 `make up` (and `make seed`) also creates a demo shop account — `shop@example.com`
 / `shop-password`, seeded only when `APP_ENV != prod` — so you can log into the
-shop screen. Payment is a stub (`paystub/`, port 8001): card `…0000` approves,
-`…0002` declines, `…9995` hangs until you resolve it on `localhost:8001/docs`.
+shop screen, plus a demo flash sale (5 units, starts a minute after the seed) so
+the storefront has something live to show. Payment is a stub (`paystub/`, port
+8001): card `…0000` approves, `…0002` declines, `…9995` hangs until you resolve
+it on `localhost:8001/docs`.
 
 ## Configuration
 
@@ -93,6 +95,10 @@ test. Rows are updated as each stage lands.
 
 ## Next steps
 
-Follow `docs/plan.md` — stage 7 is the frontend. Planned but not in scope yet:
-Postgres `LISTEN/NOTIFY` for multi-worker fan-out, a hung-payment timeout,
-automatic reconciliation with the payment stub, and pagination.
+The plan (`docs/plan.md`) is complete. Left for a future iteration:
+
+- Postgres `LISTEN/NOTIFY` and a separate worker, so several backend processes
+  fan out the same live events (the demo runs one uvicorn process with an
+  in-memory broadcaster).
+- An automatic hung-payment timeout and reconciliation with the payment stub.
+- Pagination on the list endpoints.

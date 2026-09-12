@@ -17,11 +17,12 @@ its "Ожидаемое поведение" bullets are the acceptance criteria.
 on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
-Status: stages 0-3 done. The backend is an `app/` package (`app/main.py` with a
-`create_app(settings, clock, broadcaster)` factory and `GET /api/health`) with the
-domain models + migrations, auth (server-side sessions, argon2id), sales
-(create/list with server time + phase), and cart (reserve/release). Payments,
-outbox, scheduler, realtime SSE and the frontend remain — see `docs/plan.md`.
+Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
+a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
+realtime SSE and the Vue frontend are implemented and `make check` is green.
+Every "Ожидаемое поведение" bullet is proven by a named test (README "State"
+table); only "opens for everyone at the start" is marked partially proven. See
+`docs/plan.md`.
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
