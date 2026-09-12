@@ -80,9 +80,14 @@ async def start_payment(
         # Re-read the reservation: the in-memory object still says ``held``, but a
         # concurrent payment may have already flipped it, and the loser should be
         # told "payment already in progress", not "reservation is not held".
+        # ``populate_existing`` is what makes the re-read real: this session's
+        # identity map already holds the stale instance, so a plain select()
+        # returns that and discards the committed row it just fetched.
         current = (
             await db.execute(
-                select(Reservation).where(Reservation.id == reservation.id)
+                select(Reservation)
+                .where(Reservation.id == reservation.id)
+                .execution_options(populate_existing=True)
             )
         ).scalar_one()
         if (
