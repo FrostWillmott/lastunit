@@ -10,6 +10,18 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-12 — Listing a sale broadcasts `sale_status`, not a new `sale_created`
+The runtime check (`docs/verification-2026-09-12.md`) found that a storefront
+opened *before* the shop lists a sale never sees it: `create_sale` published
+nothing, and `sale_status` only fired when a sale ended. That matters because
+acceptance bullet 1's scenario is literally "the page was open in advance".
+Reusing `sale_status` rather than adding a `sale_created` event: every store
+already subscribes to it and answers by refetching its whole list
+(`useRealtime.ts`, `stores/sales.ts`), so the fix is one publish on the backend
+and no frontend change at all — and "a sale's status is now ACTIVE and public"
+is what the event says. A second event name would have meant four more
+subscriptions to keep in step for no extra information.
+
 ## 2026-09-12 — Python is pinned in `.python-version`; the runtime stays 3.12
 Dependabot's `python:3.12-slim` → `3.14-slim` exposed that the interpreter was
 pinned nowhere: with only `requires-python = ">=3.12"` to go on, uv took the CI
