@@ -22,7 +22,8 @@ Fable 5.1. The full per-session tool/model record lives in `agent-sessions/`.
 
 - Docker with compose — for the database and the local stack.
 - uv — Python dependency manager (Dockerfile and CI pin `0.12.11`).
-- Node 24 — see `frontend/.nvmrc`.
+- Node 24 — `.nvmrc` in the repo root, so `nvm use` picks it up from there;
+  `frontend/package.json` declares the same floor in `engines`.
 
 ## Run locally
 
