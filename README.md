@@ -44,6 +44,11 @@ different session before it reaches the repository, and both audits found
 defects that the implementer's own review had passed. The full per-session
 tool/model record lives in `agent-sessions/`.
 
+One layer of that setup went unused. `.claude/agents/` defines three mechanical
+subagents on `model: haiku`, but no session invoked one — every lookup, check
+run and doc edit happened in the main session, on the expensive model. What
+they are for is under "Next steps".
+
 ## Stack
 
 - Backend: FastAPI (Python 3.12, uv), async SQLAlchemy + PostgreSQL 17.
@@ -170,3 +175,17 @@ The plan (`docs/plan.md`) is complete. Left for a future iteration:
   in-memory broadcaster).
 - An automatic hung-payment timeout and reconciliation with the payment stub.
 - Pagination on the list endpoints.
+- Actually route the mechanical steps to the subagents in `.claude/agents/`,
+  which are written and wired but were never called. They run on `model: haiku`,
+  which resolves through `ANTHROPIC_DEFAULT_HAIKU_MODEL` — `deepseek-flash` on
+  the DeepSeek endpoint, Haiku 4.5 on Anthropic's — so each one costs a fraction
+  of a main-session turn and keeps its output out of the main context:
+  - `scout` for the "where does X live" lookups that open every session, which
+    here were `grep`/`Read` sweeps paid for at full price.
+  - `test-runner` for the `make check` after each of the plan's commits,
+    returning a pass/fail digest instead of the full log.
+  - `doc-updater` for the dated `DECISIONS.md` entry and the README "State" row
+    that ship in the same change as the code.
+
+  Mechanical work only: judgement, every code change and both audits stay where
+  the split above puts them, in the main session or a different model.
