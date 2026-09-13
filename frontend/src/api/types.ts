@@ -36,7 +36,7 @@ export interface Sale {
 export interface Reservation {
   id: number
   sale_id: number
-  status: string
+  status: ReservationStatus
   expires_at: string
 }
 

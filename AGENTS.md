@@ -21,8 +21,7 @@ Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package wi
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
 realtime SSE and the Vue frontend are implemented and `make check` is green.
 Every "Ожидаемое поведение" bullet is proven by a named test (README "State"
-table); only "opens for everyone at the start" is marked partially proven. See
-`docs/plan.md`.
+table). See `docs/plan.md`.
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
