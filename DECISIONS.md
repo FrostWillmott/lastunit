@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-13 — The reviewer handover note stays, as `docs/handover-ru.md`
+Supersedes the "there is none in the repository at the moment" aside in the
+language entry below: the note is back. It is a route map and not a second
+README — each of the spec's seven "Что мы ожидаем от вас" points gets a link
+into the repository instead of a retelling, which is what keeps it cheap to hold
+correct. It was briefly removed the same day before this reversed that.
+
 ## 2026-09-13 — Claude Code as the tool, and why the harness is not ported
 Anthropic's models have historically been the easiest to work with here —
 frontier, and strong in independent reviews and not only subjectively — and
