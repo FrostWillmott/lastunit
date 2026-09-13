@@ -13,7 +13,8 @@
 > проверяющему: `docs/plan.md`, оба аудита и `docs/verification-2026-09-12.md`;
 > `docs/acceptance.md` — исходное ТЗ, сохранено как есть. Любой документ, включая
 > этот README, переведём на русский по первому запросу и пришлём вместо
-> оригинала или отдельно. Почему так — `DECISIONS.md`, запись от 2026-09-13.
+> оригинала или отдельно. Почему так — запись «English for anything a client
+> could receive» в `DECISIONS.md`.
 
 ## What it is
 
@@ -50,6 +51,22 @@ The split is the point: a mistake has to survive a different model in a
 different session before it reaches the repository, and both audits found
 defects that the implementer's own review had passed. The full per-session
 tool/model record lives in `agent-sessions/`.
+
+Why Claude Code. Anthropic's models have historically been the easiest for me to
+work with — frontier models that hold up in independent reviews, not only by
+feel — and Claude Code is built around them, so it was the obvious tool to reach
+for. What kept it is what surfaced afterwards and keeps shipping: a review or an
+audit runs as a subagent started by one command inside the current session, with
+its instructions and environment already prepared (`/code-review` ran eleven
+times here; the security review is folded into the code audit), and an advisor —
+a stronger reviewer model that receives the whole transcript — is consulted
+before an approach sets and before work is called done. Around that has grown a
+harness: `.claude/rules/`, this project template, `.claude/skills/`, the subagent
+definitions and the hooks. Porting it to another tool costs more than the port
+would return, and the transcripts it writes are also the session export the spec
+asks for. The model split above needed no second tool either — `ANTHROPIC_BASE_URL`
+points the same harness at another endpoint, which is how DeepSeek V4 Pro
+(`api.deepseek.com/anthropic`) did the implementation.
 
 One layer of that setup went unused. `.claude/agents/` defines three mechanical
 subagents on `model: haiku`, but no session invoked one — every lookup, check

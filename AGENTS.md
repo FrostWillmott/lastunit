@@ -21,7 +21,7 @@ Language: everything that can reach a client is English (code, commit messages,
 `README.md`, `AGENTS.md`, `.claude/rules/`, `DECISIONS.md`, `SECURITY.md`);
 Russian is for reviewer-only and working documents (`docs/plan.md`, the audits,
 `docs/verification-*.md`). The spec's own terms are quoted verbatim, untranslated.
-Reason and the full map: `DECISIONS.md`, 2026-09-13.
+Reason and the full map: the language entry in `DECISIONS.md` (2026-09-13).
 
 Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,

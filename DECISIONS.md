@@ -10,6 +10,27 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-13 — Claude Code as the tool, and why the harness is not ported
+Anthropic's models have historically been the easiest to work with here —
+frontier, and strong in independent reviews and not only subjectively — and
+Claude Code is built around them, so it was the natural starting point. What
+settles it now is the harness that has grown around it: `.claude/rules/`, the
+project template, `.claude/skills/`, the subagent definitions in
+`.claude/agents/` and the hooks in `.claude/settings.json`. Moving that to
+another tool costs more than it returns.
+
+What earns its keep day to day: a review or an audit runs as a subagent started
+by one command in the current session with its instructions and environment
+already prepared (`/code-review`, eleven runs; the security review inside
+`docs/code-audit-2026-09-12.md`), an advisor — a stronger reviewer model that
+sees the whole transcript — consulted before an approach sets, and the
+transcripts themselves, which are the session export the spec requires. The set
+keeps growing, which is its own argument for staying.
+
+Using another vendor's model needed no second tool: `ANTHROPIC_BASE_URL` points
+the same harness at `api.deepseek.com/anthropic`, which is how DeepSeek V4 Pro
+ran stages 0-8 under the rules in this repository.
+
 ## 2026-09-13 — English for anything a client could receive, Russian only for the reviewer
 The company's customers are foreign, so everything that can reach them is in
 English: the code and commit messages, `README.md`, `AGENTS.md` / `CLAUDE.md`,
