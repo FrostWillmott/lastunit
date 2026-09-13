@@ -3,11 +3,6 @@
 #
 # After any ruff upgrade, run `ruff check`: rule codes get renamed/removed
 # between versions and ruff will report unknown codes.
-#
-# Modelled on a real production config. Note two things this template gets right
-# that a default-generated config usually doesn't:
-#   1. Every `ignore` entry says WHY (so the next reader/agent doesn't "fix" it).
-#   2. per-file-ignores for non-ASCII prompt files (RUF001) — see ai-engineering.md.
 
 exclude = [
     ".git", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".venv",
@@ -39,7 +34,7 @@ select = [
     "RUF",  # ruff-specific rules
 ]
 
-# Every ignore states its reason. Add/remove per project; don't carry blindly.
+# Every ignore states its reason.
 ignore = [
     "E501",   # line length is the formatter's job, not a lint error
     "B008",   # function call in default arg — required by FastAPI Depends()
@@ -54,12 +49,7 @@ combine-as-imports = true
 "__init__.py" = ["F401"]              # re-exports
 "tests/**" = ["S101", "S105", "B"]    # asserts + test DB creds (app/app is not a secret); bugbear noisy
 "alembic/**" = ["F401", "E402"]
-# Files holding non-ASCII (e.g. Russian) LLM prompts — RUF001 flags Cyrillic as
-# "ambiguous". Local exception, not a global disable. List the real files:
-# "app/services/llm/providers.py" = ["RUF001"]
 
-[lint.pydocstyle]
-convention = "google"
 # Codebase-hygiene thresholds. Long positional signatures and deeply nested
 # functions are what audits flag as "god modules" / "long signatures"; the
 # fix is a config object or a split, not a per-file ignore.
