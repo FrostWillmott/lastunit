@@ -10,6 +10,24 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-13 — English for anything a client could receive, Russian only for the reviewer
+The company's customers are foreign, so everything that can reach them is in
+English: the code and commit messages, `README.md`, `AGENTS.md` / `CLAUDE.md`,
+`.claude/rules/`, `DECISIONS.md` and `SECURITY.md`. Russian is for what is
+written for the reviewer alone or kept as a working document — `docs/plan.md`,
+both audits (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`)
+and `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the customer's
+brief and stays verbatim, which is also why English documents quote its terms
+untranslated ("Ожидаемое поведение"). `agent-sessions/` keeps whatever language
+each session ran in and is never rewritten.
+
+That split was already the de facto state; the entry exists so it is a rule
+rather than a per-document judgement call. Two consequences worth stating: a
+Russian summary addressed only to the reviewer is permitted by this rule (there
+is none in the repository at the moment), and any artifact is translated into
+the other language on first request and sent instead of, or alongside, the
+original. README says so where the reviewer sees it.
+
 ## 2026-09-12 — A declined card keeps the hold; only the sale's end takes it away
 Observed during the runtime check and previously undocumented: paying with the
 declining test card leaves the order `pending` and the reservation `held`, so

@@ -8,6 +8,13 @@
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
+> Сдаточные материалы — на английском: заказчики компании иностранные, и всё,
+> что может уйти им, пишется по-английски. По-русски здесь то, что адресовано
+> проверяющему: `docs/plan.md`, оба аудита и `docs/verification-2026-09-12.md`;
+> `docs/acceptance.md` — исходное ТЗ, сохранено как есть. Любой документ, включая
+> этот README, переведём на русский по первому запросу и пришлём вместо
+> оригинала или отдельно. Почему так — `DECISIONS.md`, запись от 2026-09-13.
+
 ## What it is
 
 Flash-sale service: a shop lists a batch of goods at a special price for a
