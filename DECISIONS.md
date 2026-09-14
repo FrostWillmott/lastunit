@@ -10,6 +10,20 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-14 — One gitleaks allowlist: a canonical UUID is not a secret
+Supersedes the "no exception was added to the gitleaks config" choice recorded
+in `agent-sessions/2026-09-12-runtime-verification.md`. That choice was right for
+its case -- a real invented password, where editing the export was cheaper than
+weakening the gate. This case is the opposite: the finding is a `sessionId` that
+the repository already carries 517 times in another export, flagged only because
+the filename `2026-09-12-password-min-length.jsonl` puts the word "password"
+beside it. Redacting it would falsify the record and buy no secrecy.
+
+`.gitleaks.toml` extends the default ruleset and exempts one shape: an anchored
+canonical UUID, scoped to the matched secret, under `generic-api-key` alone.
+Verified both ways -- all 14 exports (38 MB) scan clean, and a planted 48-char
+`PAYSTUB_WEBHOOK_SECRET` and a planted `api_key` are both still caught.
+
 ## 2026-09-14 — Three criteria left open on purpose, so they are not re-decided
 Recorded before submission so a reader can tell a choice from an omission.
 
