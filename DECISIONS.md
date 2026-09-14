@@ -39,15 +39,17 @@ the same harness at `api.deepseek.com/anthropic`, which is how DeepSeek V4 Pro
 ran stages 0-8 under the rules in this repository.
 
 ## 2026-09-13 — English for anything a client could receive, Russian only for the reviewer
-The company's customers are foreign, so everything that can reach them is in
-English: the code and commit messages, `README.md`, `AGENTS.md` / `CLAUDE.md`,
-`.claude/rules/`, `DECISIONS.md` and `SECURITY.md`. Russian is for what is
-written for the reviewer alone or kept as a working document — `docs/plan.md`,
-both audits (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`)
-and `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the customer's
+The company works for an international market and publishes in English itself,
+so everything that could reach a client is written the same way: the code and
+commit messages, `README.md`, `AGENTS.md` / `CLAUDE.md`, `.claude/rules/`,
+`DECISIONS.md` and `SECURITY.md`. Russian is for what is written for the
+reviewer alone or kept as a working document — `docs/plan.md`, both audits
+(`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`) and
+`docs/verification-2026-09-12.md`. `docs/acceptance.md` is the customer's
 brief and stays verbatim, which is also why English documents quote its terms
 untranslated ("Ожидаемое поведение"). `agent-sessions/` keeps whatever language
-each session ran in and is never rewritten.
+each session ran in and is never translated; the only edit an export ever gets
+is redaction of a secret, recorded in that directory's `README.md`.
 
 That split was already the de facto state; the entry exists so it is a rule
 rather than a per-document judgement call. Two consequences worth stating: a
