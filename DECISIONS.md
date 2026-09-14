@@ -10,6 +10,20 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-09-14 — Three criteria left open on purpose, so they are not re-decided
+Recorded before submission so a reader can tell a choice from an omission.
+
+- **Open-project scaffolding** (`CONTRIBUTING.md`, a code of conduct, issue and
+  PR templates): not added. This is a test assignment, not an open project —
+  there will be no outside contributions for those files to govern.
+- **Delivery automation** (deploy, promotion between environments, rollback):
+  not built. The demo runs locally and there is nowhere to deploy it to, so CI
+  builds, checks and audits and stops there.
+- **No `tests/e2e/` directory**, against the three-layer rule in
+  `.claude/rules/testing.md`: the end-to-end path is proven by a run of the
+  assembled stack through a browser, reported in `docs/verification-2026-09-12.md`.
+  The trade is stated in README's "Testing": that run is manual and gates no commit.
+
 ## 2026-09-13 — The reviewer handover note stays, as `docs/handover-ru.md`
 Supersedes the "there is none in the repository at the moment" aside in the
 language entry below: the note is back. It is a route map and not a second
