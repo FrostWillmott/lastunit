@@ -47,9 +47,11 @@ reviewer alone or kept as a working document — `docs/plan.md`, both audits
 (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`) and
 `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the customer's
 brief and stays verbatim, which is also why English documents quote its terms
-untranslated ("Ожидаемое поведение"). `agent-sessions/` keeps whatever language
-each session ran in and is never translated; the only edit an export ever gets
-is redaction of a secret, recorded in that directory's `README.md`.
+untranslated ("Ожидаемое поведение"). In `agent-sessions/` the hand-written
+part is Russian — the directory's `README.md` and the per-session notes; the
+transcripts keep whatever language each session ran in and are never
+translated, and the only edit an export ever gets is redaction of a secret,
+recorded in that same `README.md`.
 
 That split was already the de facto state; the entry exists so it is a rule
 rather than a per-document judgement call. Two consequences worth stating: a
