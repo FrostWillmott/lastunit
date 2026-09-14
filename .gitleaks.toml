@@ -1,0 +1,19 @@
+# Extends gitleaks' own ruleset; nothing is disabled, one false-positive shape
+# is exempted. See the 2026-09-14 entry in DECISIONS.md.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+  [rules.allowlist]
+  description = """
+  A canonical UUID is a session, request or agent id, never a credential. They
+  are everywhere in agent-sessions/ and in the repository's own prose. The
+  generic-api-key rule flags one when a keyword happens to sit nearby -- the
+  filename 2026-09-12-password-min-length.jsonl next to a sessionId is enough.
+  Scoped to the secret itself and anchored, so a longer high-entropy string that
+  merely contains a UUID is still reported.
+  """
+  regexes = ['''^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$''']
+  regexTarget = "secret"
