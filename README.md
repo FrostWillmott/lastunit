@@ -29,7 +29,8 @@ and revenue update live. Spec: `docs/acceptance.md` (Russian). Plan:
 ## Tools and models
 
 Started from a scaffolding template — Claude Code's `workflow-scaffolding`
-skill plus my own Vite + Vue 3 + TypeScript frontend skeleton.
+skill plus my own Vite + Vue 3 + TypeScript frontend skeleton, itself scaffolded
+with `create-vite`.
 
 Built with Claude Code: the repository's own conventions live in `AGENTS.md`,
 `.claude/rules/` and `.claude/skills/`, and the agent reads them every session.
