@@ -142,6 +142,16 @@ A green `make check` says the suite passes, not that the assembled app works.
 The latter was checked separately by driving the running stack through a browser:
 [`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md).
 
+There is no `tests/e2e/`, and that is a deliberate deviation.
+`.claude/rules/testing.md` requires three layers in three directories; this
+repository has two. The end-to-end path is covered instead by that browser run
+against the assembled stack — all nine "Ожидаемое поведение" bullets and the
+two-tab case, driven through the real UI and HTTP, with the observations
+recorded per bullet. The cost is real: the run is manual, so it gates no commit
+and nothing re-runs it after a change. It is current for the code as submitted —
+the only changes since are five comments and one TypeScript type narrowing — but
+any later change needs it repeated by hand, or replaced by an automated layer.
+
 ## State
 
 Every "Ожидаемое поведение" bullet in `docs/acceptance.md` maps to one named
@@ -201,6 +211,12 @@ The plan (`docs/plan.md`) is complete. Left for a future iteration:
   in-memory broadcaster).
 - An automatic hung-payment timeout and reconciliation with the payment stub.
 - Pagination on the list endpoints.
+- A delivery pipeline: automated deploy, promotion between environments and
+  rollback. CI here builds, checks and audits, and stops there — the demo runs
+  locally and there is nowhere to deploy it to, so none of that was built. On a
+  real project it is the next layer on top of what already exists.
+- An automated end-to-end layer (`tests/e2e/`) to replace the manual browser run
+  described under "Testing".
 - Actually route the mechanical steps to the subagents in `.claude/agents/`,
   which are written and wired but were never called. They run on `model: haiku`,
   which resolves through `ANTHROPIC_DEFAULT_HAIKU_MODEL` — `deepseek-flash` on
