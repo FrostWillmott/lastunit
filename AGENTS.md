@@ -18,10 +18,14 @@ on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
 Language: everything that can reach a client is English (code, commit messages,
-`README.md`, `AGENTS.md`, `.claude/rules/`, `DECISIONS.md`, `SECURITY.md`);
-Russian is for reviewer-only and working documents (`docs/handover-ru.md`,
-`docs/plan.md`, the audits, `docs/verification-*.md`). The spec's own terms are quoted verbatim, untranslated.
-Reason and the full map: the language entry in `DECISIONS.md` (2026-09-13).
+`README.md`, `AGENTS.md`, `.claude/rules/`, `DECISIONS.md`, `SECURITY.md`).
+Russian is for reviewer-only and working documents: `docs/handover-ru.md`,
+`docs/plan.md`, the audits, `docs/verification-*.md`, and everything written by
+hand in `agent-sessions/` — its `README.md` and the per-session notes, while the
+transcripts keep whatever language the session ran in. `docs/acceptance.md` is
+the spec and stays verbatim, so its terms are quoted untranslated even in
+English documents. README carries one Russian note to the reviewer above the
+fold. Reason and the full map: the language entry in `DECISIONS.md` (2026-09-13).
 
 Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
