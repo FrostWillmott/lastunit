@@ -5,7 +5,7 @@
 # is stated and what uv reads locally and in CI. `requires-python` in
 # pyproject.toml is a separate thing: the floor this code supports, not the
 # version we run on. Moving Python means changing all three together.
-FROM python:3.12-slim@sha256:78387bc3881b8273120a12ebe6c1ab22b018ccc2c9adf565ae1ac9b536e184ea
+FROM python:3.12-slim@sha256:2f17fc044b579bab302c2e8054d3a686e2cb9a83de48e70534b94cd8ebbe06a9
 
 # uv, pinned. Copying the binary from the official image avoids a curl|sh step.
 COPY --from=ghcr.io/astral-sh/uv:0.12.11 /uv /usr/local/bin/uv
