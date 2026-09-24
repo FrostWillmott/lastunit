@@ -3,7 +3,7 @@ name = "lastunit"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "alembic>=1.19.2",
+    "alembic>=1.20.0",
     "asyncpg>=0.31.0",
     "email-validator>=2.3.0",
     "fastapi>=0.141.1",
@@ -25,7 +25,7 @@ dev = [
     # Exact pin, and it must match `rev` for ruff-pre-commit in
     # .pre-commit-config.yaml: a floating linter means CI can fail on the day a
     # new rule lands, and pre-commit disagreeing with `make lint` is worse.
-    "ruff==0.16.6",
+    "ruff==0.16.8",
 ]
 
 [tool.uv]
