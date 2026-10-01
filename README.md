@@ -64,8 +64,7 @@ a stronger reviewer model that receives the whole transcript — is consulted
 before an approach sets and before work is called done. Around that has grown a
 harness: `.claude/rules/`, this project template, `.claude/skills/`, the subagent
 definitions and the hooks. Porting it to another tool costs more than the port
-would return, and the transcripts it writes are also the session export the spec
-asks for. The model split above needed no second tool either — `ANTHROPIC_BASE_URL`
+would return. The model split above needed no second tool either — `ANTHROPIC_BASE_URL`
 points the same harness at another endpoint, which is how DeepSeek V4 Pro
 (`api.deepseek.com/anthropic`) did the implementation.
 
