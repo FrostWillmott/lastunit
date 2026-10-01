@@ -8,20 +8,14 @@
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
-> The project documentation is in English. A few working documents are in
-> Russian: [`docs/handover-ru.md`](docs/handover-ru.md) (a route through the
-> repository along the brief), `docs/plan.md`, both audits and
-> `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the original brief
-> in Russian, kept verbatim. Why the split: the entry "English for anything a
-> client could receive" in `DECISIONS.md`.
-
 ## What it is
 
 Flash-sale service: a shop lists a batch of goods at a special price for a
 short window, and there are more buyers than stock. A buyer reserves one unit
 (10-minute hold) and pays through a payment stub; the shop watches stock, sold
-and revenue update live. Spec: `docs/acceptance.md` (Russian). Plan:
-`docs/plan.md`.
+and revenue update live. Spec: `docs/acceptance.md`. Plan: `docs/plan.md`.
+A route through the repository along the spec's deliverables:
+[`docs/handover.md`](docs/handover.md).
 
 ## Tools and models
 
@@ -143,7 +137,7 @@ The latter was checked separately by driving the running stack through a browser
 There is no `tests/e2e/`, and that is a deliberate deviation.
 `.claude/rules/testing.md` requires three layers in three directories; this
 repository has two. The end-to-end path is covered instead by that browser run
-against the assembled stack — all nine "Ожидаемое поведение" bullets and the
+against the assembled stack — all nine "Expected behaviour" bullets and the
 two-tab case, driven through the real UI and HTTP, with the observations
 recorded per bullet. The cost is real: the run is manual, so it gates no commit
 and nothing re-runs it after a change. It is current for the code as submitted —
@@ -152,7 +146,7 @@ any later change needs it repeated by hand, or replaced by an automated layer.
 
 ## State
 
-Every "Ожидаемое поведение" bullet in `docs/acceptance.md` maps to one named
+Every "Expected behaviour" bullet in `docs/acceptance.md` maps to one named
 test. Rows are updated as each stage lands.
 
 All nine bullets were also exercised against the running stack in a browser on
