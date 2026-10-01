@@ -8,7 +8,7 @@ this file and adds Claude Code specifics; other agents read this file directly.
   PREFER tags used in each module.
 - Skills: `.claude/skills/` (also reachable as `.agents/skills`, a symlink).
 - Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Implementation plan
-  with commit sequence: `docs/plan.md`. Session exports: `agent-sessions/`.
+  with commit sequence: `docs/plan.md`.
 
 ## Project
 Flash-sale service: a shop lists a batch of goods at a special price for a
@@ -20,9 +20,7 @@ PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 Language: everything that can reach a client is English (code, commit messages,
 `README.md`, `AGENTS.md`, `.claude/rules/`, `DECISIONS.md`, `SECURITY.md`).
 Russian is for reviewer-only and working documents: `docs/handover-ru.md`,
-`docs/plan.md`, the audits, `docs/verification-*.md`, and everything written by
-hand in `agent-sessions/` — its `README.md` and the per-session notes, while the
-transcripts keep whatever language the session ran in. `docs/acceptance.md` is
+`docs/plan.md`, the audits and `docs/verification-*.md`. `docs/acceptance.md` is
 the spec and stays verbatim, so its terms are quoted untranslated even in
 English documents. README's opening note, in English, says which documents are
 Russian. Reason and the full map: the language entries in `DECISIONS.md`
@@ -90,8 +88,6 @@ From `docs/acceptance.md`, not derivable from code:
   a day of work into one commit.
 - README must say the repo started from a scaffolding template and which AI
   tool and model were used. Agent use is expected and is not to be hidden.
-- Session logs go to `agent-sessions/` at the end of each session and once more,
-  as a full export, before submission.
 - Two clients open at once (two tabs) must stay in sync; see the "Live updates"
   rules in `transactional-web.md`.
 

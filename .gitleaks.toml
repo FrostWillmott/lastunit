@@ -9,7 +9,8 @@ id = "generic-api-key"
   [rules.allowlist]
   description = """
   A canonical UUID is a session, request or agent id, never a credential. They
-  are everywhere in agent-sessions/ and in the repository's own prose. The
+  are everywhere in the session exports in git history and in the repository's
+  own prose. The
   generic-api-key rule flags one when a keyword happens to sit nearby -- the
   filename 2026-09-12-password-min-length.jsonl next to a sessionId is enough.
   Scoped to the secret itself and anchored, so a longer high-entropy string that

@@ -26,9 +26,10 @@ Anthropic: `ANTHROPIC_BASE_URL` направляет тот же харнес н
 
 ## 3. Промпты, лог решений или экспорт сессии агента
 
-- [`agent-sessions/`](../agent-sessions/) — экспорты сессий: на каждую полный
-  `.jsonl` и краткий `.md`.
-- [`agent-sessions/README.md`](../agent-sessions/README.md) — что сюда **не**
+- [`agent-sessions/`](https://github.com/FrostWillmott/lastunit/tree/submission-2026-09-14/agent-sessions) — экспорты сессий: на каждую полный
+  `.jsonl` и краткий `.md`. Лежат под тегом `submission-2026-09-14`; из `main`
+  удалены 01.10.2026.
+- [`agent-sessions/README.md`](https://github.com/FrostWillmott/lastunit/blob/submission-2026-09-14/agent-sessions/README.md) — что сюда **не**
   попало и почему (форки и продолжения одной работы) и что вырезано перед
   сдачей (мёртвые локальные секреты, пароль тестовых учёток). Прочтите до того,
   как сверять число экспортов с числом сессий.
@@ -42,7 +43,7 @@ Anthropic: `ANTHROPIC_BASE_URL` направляет тот же харнес н
   +0300.
 - [`DECISIONS.md`](../DECISIONS.md) — решение датировано и лежит в том же
   изменении, что и код, а не добавлено задним числом.
-- [`agent-sessions/`](../agent-sessions/) — даты в именах файлов.
+- [`agent-sessions/`](https://github.com/FrostWillmott/lastunit/tree/submission-2026-09-14/agent-sessions) — даты в именах файлов.
 - [`docs/plan.md` → «Этапы и коммиты»](plan.md#этапы-и-коммиты) — какая
   последовательность коммитов планировалась заранее, чтобы сверить план с
   фактической историей.
