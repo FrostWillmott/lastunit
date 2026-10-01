@@ -1,419 +1,432 @@
-# Аудит кода (2026-09-12)
+# Code audit (2026-09-12)
 
-Независимый аудит диапазона `efdaea8..HEAD` (56 коммитов, `934fcfe`) второй
-моделью: Claude Code (CLI), Claude Fable 5.1. Реализация выполнена
-deepseek-v4-pro по `docs/plan.md`. Ничего в репозитории не менялось; единственный
-созданный файл — этот отчёт. Эксперименты (сценарии E1–E8 ниже) выполнялись
-скриптами вне репозитория против тестовой БД `app_test` и против клона,
-поднятого по README.
+Independent audit of the range `efdaea8..HEAD` (56 commits, `934fcfe`) by a
+second model: Claude Code (CLI), Claude Fable 5.1. The implementation was done by
+deepseek-v4-pro following `docs/plan.md`. Nothing in the repository was changed;
+the only file created is this report. The experiments (scenarios E1–E8 below)
+were run by scripts outside the repository against the test DB `app_test` and
+against a clone brought up per the README.
 
-Шкала: **критично** — приёмочный пункт не выполняется в поставленной сборке;
-**высокая** — расхождение README/DECISIONS с реальностью или требование ТЗ без
-покрытия; **средняя** — воспроизводимый дефект вне приёмочных пунктов;
-**низкая** — робастность, гигиена правил.
+Scale: **critical** — an acceptance item does not hold in the delivered build;
+**high** — README/DECISIONS diverge from reality, or a spec requirement has no
+coverage; **medium** — a reproducible defect outside the acceptance items;
+**low** — robustness, rule hygiene.
 
-## Находки
+## Findings
 
-### 1. [критично] Уведомление «корзина очищена» в поставленном планировщике недостижимо
-- `app/scheduler.py:142-143` — `loop` вызывает `run_once` (истечение удержаний)
-  **до** `end_ended_sales` с одним и тем же `now`. `app/services/cart.py:129` —
-  `expires_at = min(now + 10 min, ends_at)`, то есть у каждого `held` в момент
-  `now >= ends_at` уже `expires_at <= now`. `run_once` переводит все такие строки в
-  `expired` (без уведомления), и `end_ended_sales` (`app/scheduler.py:84-121`)
-  не находит ни одного `held`. Ветка `held → cleared` + `enqueue_cart_cleared`
-  в проде — мёртвый код.
-- Сценарий: покупатель держит единицу до конца распродажи, не платит. На тике
-  `ends_at`: резервация `expired`, заказ `cancelled`, `notifications` — пусто.
-  Подтверждено дважды: скриптом (E1: `expired=1 ended=1 cart_cleared_notifications=0`,
-  включая удержание за 5 минут до конца) и на реальном compose-стеке (E2E:
-  строка `3|4|expired`, таблица `notifications` содержит только два `order_paid`).
-- Тест `test_sale_end_clears_holds_and_notifies` (`tests/integration/test_sale_end.py:24`)
-  зовёт `end_ended_sales` напрямую, минуя `run_once`, поэтому зелёный.
-  Пункт 9 ТЗ («владельцы получают уведомление») в README помечен proven — неверно.
-- Минимальная правка: поменять порядок вызовов в `loop` (сначала
-  `end_ended_sales`, потом `run_once`) **или** в `run_once` исключить удержания,
-  чья распродажа уже закончилась (`JOIN sales ... WHERE sales.ends_at > :now`),
-  и добавить тест, который прогоняет ровно последовательность `loop`
-  (`run_once` → `end_ended_sales`) при `now = ends_at` и утверждает наличие
-  `cart_cleared`.
+### 1. [critical] The "cart cleared" notification is unreachable in the delivered scheduler
+- `app/scheduler.py:142-143` — `loop` calls `run_once` (hold expiry)
+  **before** `end_ended_sales` with the same `now`. `app/services/cart.py:129` —
+  `expires_at = min(now + 10 min, ends_at)`, so at the moment `now >= ends_at`
+  every `held` row already has `expires_at <= now`. `run_once` moves all
+  such rows to `expired` (without a notification), and `end_ended_sales`
+  (`app/scheduler.py:84-121`) finds no `held` rows at all. The `held → cleared`
+  branch + `enqueue_cart_cleared` is dead code in production.
+- Scenario: a buyer keeps a hold on a unit until the end of the sale and does not
+  pay. On the `ends_at` tick: reservation `expired`, order `cancelled`,
+  `notifications` — empty. Confirmed twice: by a script (E1:
+  `expired=1 ended=1 cart_cleared_notifications=0`, including a hold taken 5
+  minutes before the end) and on the real compose stack (E2E: row
+  `3|4|expired`, the `notifications` table contains only two `order_paid`).
+- The test `test_sale_end_clears_holds_and_notifies` (`tests/integration/test_sale_end.py:24`)
+  calls `end_ended_sales` directly, bypassing `run_once`, which is why it is green.
+  Spec item 9 ("owners get notified") is marked proven in README — wrong.
+- Minimal fix: swap the call order in `loop` (first `end_ended_sales`, then
+  `run_once`) **or** exclude from `run_once` the holds whose sale has already
+  ended (`JOIN sales ... WHERE sales.ends_at > :now`), and add a test that runs
+  exactly the `loop` sequence (`run_once` → `end_ended_sales`) at
+  `now = ends_at` and asserts that `cart_cleared` is present.
 
-### 2. [высокая] README не называет модель, которой написан код
-- `README.md:10-12` — «the scaffold, plan and audit sessions used Claude Fable 5.1»;
-  о deepseek-v4-pro (все этапы 0–8, `agent-sessions/2026-09-11-*.md:3`,
-  `2026-09-12-stage-8-submission.md:3`) README молчит, отсылая в каталог.
-  ТЗ («Чем делали: какая модель») требует это в описании проекта.
-- Правка: одно предложение в README: реализация — deepseek-v4-pro через
-  Claude Code на не-Anthropic эндпоинте; аудиты/план — Claude Fable 5.1.
+### 2. [high] README does not name the model that wrote the code
+- `README.md:10-12` — "the scaffold, plan and audit sessions used Claude Fable 5.1";
+  README is silent about deepseek-v4-pro (all stages 0–8, `agent-sessions/2026-09-11-*.md:3`,
+  `2026-09-12-stage-8-submission.md:3`), pointing to the directory instead.
+  The spec ("What it was built with: which model") requires this in the project
+  description.
+- Fix: one sentence in README: implementation — deepseek-v4-pro via Claude Code
+  on a non-Anthropic endpoint; audits/plan — Claude Fable 5.1.
 
-### 3. [высокая] Обещанный экспорт сессии этапа 8 отсутствует
-- `agent-sessions/2026-09-12-stage-8-submission.md:4-5` обещает
-  `2026-09-12-stage-8-submission.jsonl`; файла нет (в каталоге четыре jsonl,
-  последний — `2026-09-11-frontend-stage-7.jsonl`). Коммиты `5672f17`, `80fe49c`,
-  `e495e22`, `934fcfe` (все 2026-09-12) экспортом не покрыты. ТЗ просит полный
-  экспорт перед сдачей.
-- Правка: добавить экспорт или в md явно записать, что экспорта этой сессии нет
-  и почему.
+### 3. [high] The promised stage 8 session export is missing
+- `agent-sessions/2026-09-12-stage-8-submission.md:4-5` promises
+  `2026-09-12-stage-8-submission.jsonl`; the file does not exist (the directory
+  has four jsonl files, the last one is `2026-09-11-frontend-stage-7.jsonl`).
+  Commits `5672f17`, `80fe49c`, `e495e22`, `934fcfe` (all 2026-09-12) are not
+  covered by an export. The spec asks for a full export before submission.
+- Fix: add the export, or state explicitly in the md that there is no export of
+  this session and why.
 
-### 4. [высокая] INFO-логи приложения под uvicorn не выводятся: почтовая заглушка «ничего не отправляет», LOG_LEVEL мёртв для сервера
-- `app/main.py:33` ставит уровень логгеру `app`, но обработчик никто не
-  добавляет; uvicorn настраивает только свои логгеры. `app/email_stub.py:10`
-  (`logger.info`) и `app/scheduler.py:146` уходят в `lastResort`, который
-  печатает только WARNING и выше (`logger.exception` в `scheduler.py:153`
-  поэтому виден, а INFO — нет).
-  На клон-стеке после двух оплат: `email to` в логе бэкенда — 0 строк,
-  `expired ... holds` — 0 строк; единственная строка `app.*` — от seed, который
-  сам зовёт `basicConfig` (`app/seed.py:73`).
-- Следствие: единственный наблюдаемый след «письма» — `sent_at` в таблице;
-  контракт «заглушка пишет в лог» (DECISIONS «Email via an outbox») не
-  выполняется; `LOG_LEVEL` меняет поведение только seed'а
-  (config-hygiene «Declared means wired»).
-- Правка: `logging.basicConfig(level=settings.log_level)` в `create_app` (или
-  `log_config` uvicorn'а с обработчиком для `app`), плюс тест, что
-  `send_email` даёт запись в `caplog`.
+### 4. [high] The app's INFO logs are not printed under uvicorn: the mail stub "sends nothing", LOG_LEVEL is dead for the server
+- `app/main.py:33` sets the level on the `app` logger, but nobody adds a
+  handler; uvicorn configures only its own loggers. `app/email_stub.py:10`
+  (`logger.info`) and `app/scheduler.py:146` go to `lastResort`, which prints
+  only WARNING and above (which is why `logger.exception` in `scheduler.py:153`
+  is visible, while INFO is not).
+  On the clone stack after two payments: `email to` in the backend log — 0 lines,
+  `expired ... holds` — 0 lines; the only `app.*` line comes from seed, which
+  calls `basicConfig` itself (`app/seed.py:73`).
+- Consequence: the only observable trace of the "email" is `sent_at` in the
+  table; the "stub writes to the log" contract (DECISIONS "Email via an outbox")
+  does not hold; `LOG_LEVEL` changes the behaviour of seed only
+  (config-hygiene "Declared means wired").
+- Fix: `logging.basicConfig(level=settings.log_level)` in `create_app` (or
+  uvicorn's `log_config` with a handler for `app`), plus a test that
+  `send_email` produces a record in `caplog`.
 
-### 5. [средняя] Ключ идемпотентности живёт в `sessionStorage`: во второй вкладке оплатить нельзя
-- `frontend/src/stores/cart.ts:24,33,52` — `checkouts` хранятся per-tab. Во
-  второй вкладке (или после перезапуска браузера) для той же резервации
-  генерируется новый ключ, `POST /orders` упирается в `uq_orders_reservation_id`
-  (`app/services/orders.py:89-106`) → 409 «reservation already has an order»,
-  `orderId` остаётся `null`, каждое нажатие повторяет 409. Покупатель не может
-  ни заплатить, ни «попробовать снова» из этой вкладки — противоречит требованию
-  11 ТЗ (две вкладки). Ответ бэкенда на этот запрос уже зафиксирован
-  существующим тестом `test_create_order_same_reservation_different_key_409`
-  (`tests/integration/test_orders.py:115`); фронтенд-часть цепочки — из кода
-  `cart.ts:84-106`, в браузере не воспроизводилась.
-- Чужой результат ключ вернуть не может: ключ уникален в паре с `user_id`, а
-  повтор с другой резервацией → 409 (`orders.py:58-59`). Проверено.
-- Правка: при 409 на создание заказа искать заказ по `reservation_id` в
-  `GET /me/orders` и продолжать оплату с ним; либо возвращать `order_id` в
+### 5. [medium] The idempotency key lives in `sessionStorage`: payment is impossible from a second tab
+- `frontend/src/stores/cart.ts:24,33,52` — `checkouts` are stored per tab. In a
+  second tab (or after a browser restart) a new key is generated for the same
+  reservation, `POST /orders` hits `uq_orders_reservation_id`
+  (`app/services/orders.py:89-106`) → 409 "reservation already has an order",
+  `orderId` stays `null`, every click repeats the 409. The buyer can neither pay
+  nor "try again" from that tab — contradicts spec requirement 11 (two tabs).
+  The backend's response to this request is already pinned by the existing test
+  `test_create_order_same_reservation_different_key_409`
+  (`tests/integration/test_orders.py:115`); the frontend half of the chain is
+  from reading `cart.ts:84-106`, not reproduced in a browser.
+- A key cannot return someone else's result: the key is unique together with
+  `user_id`, and a repeat with a different reservation → 409 (`orders.py:58-59`).
+  Verified.
+- Fix: on a 409 when creating an order, look the order up by `reservation_id`
+  in `GET /me/orders` and continue payment with it; or return `order_id` in
   `GET /me/cart`.
 
-### 6. [средняя] argon2 блокирует event loop на каждом входе/регистрации
-- `app/services/auth.py:28,32` — синхронный `pwdlib` внутри `async def`
-  (`app/routers/auth.py:41,59`). Замер: hash 51 мс, verify 39 мс (E5). В момент
-  старта распродажи волна логинов последовательно останавливает все SSE-потоки
-  и `reserve`. python-core [MUST] «no blocking I/O in async paths».
-- Правка: `await asyncio.to_thread(verify_password, ...)` /
+### 6. [medium] argon2 blocks the event loop on every login/registration
+- `app/services/auth.py:28,32` — synchronous `pwdlib` inside `async def`
+  (`app/routers/auth.py:41,59`). Measured: hash 51 ms, verify 39 ms (E5). At
+  the moment a sale starts, a wave of logins stalls all SSE streams and
+  `reserve` one after another. python-core [MUST] "no blocking I/O in async paths".
+- Fix: `await asyncio.to_thread(verify_password, ...)` /
   `to_thread(hash_password, ...)`.
 
-### 7. [средняя] Три значения по умолчанию для одного секрета вебхука
+### 7. [medium] Three defaults for one webhook secret
 - `app/config.py:27` (`"dev-secret"`), `paystub/main.py:107` (`"dev-secret"`,
-  через `os.environ.get` мимо Settings — config-hygiene [MUST]),
-  `tests/integration/test_payments.py:114,227` (`b"dev-secret"` захардкожено).
-  Если у разработчика в shell экспортирован `PAYSTUB_WEBHOOK_SECRET`, оба
-  webhook-теста падают. `.env.example:20` держит значение пустым и генерирует —
-  четвёртая правда.
-- Правка: тесты подписывают `Settings().paystub_webhook_secret` (или создают
-  приложение с явным `Settings(paystub_webhook_secret=...)`); в paystub — тот же
-  pydantic-settings объект или обязательная переменная без дефолта.
+  via `os.environ.get`, bypassing Settings — config-hygiene [MUST]),
+  `tests/integration/test_payments.py:114,227` (`b"dev-secret"` hardcoded).
+  If a developer has `PAYSTUB_WEBHOOK_SECRET` exported in their shell, both
+  webhook tests fail. `.env.example:20` keeps the value empty and generates it —
+  a fourth truth.
+- Fix: tests sign with `Settings().paystub_webhook_secret` (or build the app
+  with an explicit `Settings(paystub_webhook_secret=...)`); in paystub — the
+  same pydantic-settings object or a required variable with no default.
 
-### 8. [средняя] `VITE_API_URL` из корневого `.env` никем не читается
-- `frontend/vite.config.ts:16` читает `process.env.VITE_API_URL`; Vite грузит
-  `.env`-файлы из `frontend/`, а не из корня, и не наполняет `process.env` из
-  них. `frontend/Dockerfile` переменную не передаёт. Значение в `.env.example:37`
-  и строка README (`README.md:55`) — ручка без эффекта; работает только потому,
-  что дефолт совпадает.
-- Правка: `loadEnv(mode, path.resolve(__dirname, '..'))` в `vite.config.ts` либо
-  убрать переменную из `.env.example`/README и `NON_SETTINGS_KEYS`
+### 8. [medium] `VITE_API_URL` from the root `.env` is read by nobody
+- `frontend/vite.config.ts:16` reads `process.env.VITE_API_URL`; Vite loads
+  `.env` files from `frontend/`, not from the root, and does not populate
+  `process.env` from them. `frontend/Dockerfile` does not pass the variable. The
+  value in `.env.example:37` and the README line (`README.md:55`) are a knob with
+  no effect; it works only because the default happens to match.
+- Fix: `loadEnv(mode, path.resolve(__dirname, '..'))` in `vite.config.ts`, or
+  remove the variable from `.env.example`/README and `NON_SETTINGS_KEYS`
   (`tests/unit/test_config_env_contract.py:13`).
 
-### 9. [средняя] Гонка seed по `sales.title` достижима
-- `app/seed.py:48-52` — SELECT, затем INSERT без ограничения. DECISIONS
-  (`DECISIONS.md:29-31`) объявляет гонку недостижимой «в однопроцессной
-  топологии». Два одновременных `seed_demo_sale` дают две живые демо-распродажи
-  (E6: `demo sales=2`). Достижимо: `make seed` вручную во время старта
-  контейнера (entrypoint тоже сидит) и `docker compose up --scale backend=2`.
-- Правка: `pg_advisory_xact_lock(hashtext('demo-seed'))` перед проверкой, либо
-  частичный UNIQUE по `title WHERE status='active'`.
+### 9. [medium] The seed race on `sales.title` is reachable
+- `app/seed.py:48-52` — SELECT, then INSERT with no constraint. DECISIONS
+  (`DECISIONS.md:29-31`) declares the race unreachable "in a single-process
+  topology". Two concurrent `seed_demo_sale` calls produce two live demo sales
+  (E6: `demo sales=2`). Reachable: `make seed` by hand while the container is
+  starting (the entrypoint seeds too) and `docker compose up --scale backend=2`.
+- Fix: `pg_advisory_xact_lock(hashtext('demo-seed'))` before the check, or a
+  partial UNIQUE on `title WHERE status='active'`.
 
-### 10. [низкая] Вебхук с не-ASCII подписью — необработанный `TypeError` (500)
-- `app/routers/payments.py:93` — `hmac.compare_digest(str, str)` бросает
-  `TypeError: comparing strings with non-ASCII characters` (E3, заголовок
-  `X-Webhook-Signature: café`). Ответ 500 вместо 401; заглушка в 500 видит
-  «недоставлено» и повторяет. Без подписи — 401, корректно. Replay-защиты нет,
-  но повтор безвреден: `UPDATE payments ... WHERE status='pending'`
-  (`app/services/payments.py:115-126`) — повторная доставка и повторный
-  `resolve` дают no-op; проверено (E3, тест `test_order_email_sent_exactly_once`).
-- Правка: сравнивать байты: `compare_digest(signature.encode("latin-1", "replace"), expected.encode())`.
+### 10. [low] A webhook with a non-ASCII signature is an unhandled `TypeError` (500)
+- `app/routers/payments.py:93` — `hmac.compare_digest(str, str)` raises
+  `TypeError: comparing strings with non-ASCII characters` (E3, header
+  `X-Webhook-Signature: café`). Response 500 instead of 401; the stub sees a 500
+  as "not delivered" and retries. Without a signature — 401, correct. There is
+  no replay protection, but a replay is harmless: `UPDATE payments ... WHERE status='pending'`
+  (`app/services/payments.py:115-126`) — a repeated delivery and a repeated
+  `resolve` are no-ops; verified (E3, test `test_order_email_sent_exactly_once`).
+- Fix: compare bytes: `compare_digest(signature.encode("latin-1", "replace"), expected.encode())`.
 
-### 11. [низкая] Проигравший параллельного двойного клика получает неверное сообщение
-- `app/services/payments.py:79-87` — после нулевого `UPDATE` ветка читает
-  `reservation.status` из памяти (он ещё `held`), поэтому второй параллельный
-  `/pay` получает 409 «reservation is not held» вместо «payment already in
-  progress» (E2: `200 pending | 409 reservation is not held`, заглушка вызвана
-  один раз, `payments=1`). Фронтенд показывает этот текст покупателю.
-- Правка: после нулевого UPDATE перечитать статус `SELECT status ... WHERE id`.
+### 11. [low] The loser of a concurrent double click gets the wrong message
+- `app/services/payments.py:79-87` — after a zero-row `UPDATE` the branch reads
+  `reservation.status` from memory (it is still `held`), so the second
+  concurrent `/pay` gets 409 "reservation is not held" instead of "payment already in
+  progress" (E2: `200 pending | 409 reservation is not held`, the stub called
+  once, `payments=1`). The frontend shows this text to the buyer.
+- Fix: after a zero-row UPDATE, re-read the status with `SELECT status ... WHERE id`.
 
-### 12. [низкая] `/api/events` без аутентификации транслирует статусы всех заказов
-- `app/routers/events.py:15-24`, `app/services/payments.py:207-209` — любой
-  неавторизованный клиент видит `order_status {order_id, status}` по всем
-  заказам и `sale_status`. Утечка небольшая (id и статус), но модуль
-  transactional-web говорит о «clients of the affected scope».
-- Правка: `Depends(current_user)` на `/events` или фильтр по `user_id` в
-  полезной нагрузке на стороне SSE-генератора.
+### 12. [low] `/api/events` without authentication broadcasts the statuses of all orders
+- `app/routers/events.py:15-24`, `app/services/payments.py:207-209` — any
+  unauthenticated client sees `order_status {order_id, status}` for all
+  orders and `sale_status`. The leak is small (id and status), but the
+  transactional-web module speaks of "clients of the affected scope".
+- Fix: `Depends(current_user)` on `/events`, or filter by `user_id` in the
+  payload on the SSE generator side.
 
-### 13. [низкая] Тайминг входа выдаёт существование email
-- `app/services/auth.py:98` — при неизвестном email argon2 не вызывается: ~1 мс
-  против ~40 мс. Практическая ценность мала: `POST /auth/register`
-  (`app/routers/auth.py:43-46`) и так отвечает 409 на занятый email.
-- Правка (если нужна): верифицировать фиктивный хэш при `user is None`.
+### 13. [low] Login timing reveals whether an email exists
+- `app/services/auth.py:98` — for an unknown email argon2 is not called: ~1 ms
+  versus ~40 ms. Practical value is low: `POST /auth/register`
+  (`app/routers/auth.py:43-46`) already answers 409 for a taken email.
+- Fix (if needed): verify a dummy hash when `user is None`.
 
-### 14. [низкая] Расхождения имён тестов и утверждений
+### 14. [low] Mismatches between test names and assertions
 - `tests/integration/test_payments.py:164` `test_hung_payment_keeps_stock`
-  проверяет только `payments.status == pending`; «товар не возвращается и не
-  продаётся дважды» реально доказывает
+  checks only `payments.status == pending`; "the item is not returned and not
+  sold twice" is actually proven by
   `test_payment_started_before_expiry_completes_after` (`available == 0`,
-  `paying` после `run_once`).
-- `test_double_pay_same_key_one_order` и `test_double_pay_calls_paystub_once`
-  (`test_orders.py:59`, `test_payments.py:122`) — последовательные запросы, а не
-  «двойное нажатие». Параллельный случай доказан только этим аудитом (E2).
-  Правка: `asyncio.gather` двух запросов в обоих тестах.
-- `tests/integration/test_realtime.py:135-136` — опрос `asyncio.sleep(0.01)`
-  с `noqa` и причиной; допустимо, фиксирую как единственное отклонение от
-  testing [MUST] «no sleep».
+  `paying` after `run_once`).
+- `test_double_pay_same_key_one_order` and `test_double_pay_calls_paystub_once`
+  (`test_orders.py:59`, `test_payments.py:122`) — sequential requests, not a
+  "double click". The concurrent case is proven only by this audit (E2).
+  Fix: `asyncio.gather` of two requests in both tests.
+- `tests/integration/test_realtime.py:135-136` — polling with `asyncio.sleep(0.01)`
+  with `noqa` and a reason; acceptable, I record it as the only deviation from
+  testing [MUST] "no sleep".
 
-### 15. [низкая] README: устаревшая фраза про Secure-cookie
-- `README.md:50` — «(later: Secure cookies)», а `app/routers/auth.py:72` уже
-  ставит `secure=app_env != "dev"`. Проверено на клоне: в dev cookie
-  `HttpOnly; SameSite=lax` без `Secure`.
+### 15. [low] README: a stale phrase about Secure cookies
+- `README.md:50` — "(later: Secure cookies)", while `app/routers/auth.py:72`
+  already sets `secure=app_env != "dev"`. Verified on the clone: in dev the
+  cookie is `HttpOnly; SameSite=lax` without `Secure`.
 
-### 16. [низкая, процесс] Записи DECISIONS отстают от коммитов с решением
-- AGENTS.md требует запись «in the same change as the decision». Clamp удержания
-  к `ends_at` принят в `c9e337c` (11.09 13:13), outbox и обнуление остатка —
-  в `dd16428`/`d12a1d1` (14:11/14:14); обе записи DECISIONS появились только в
-  `9571e31` (15:05, «fix: compose wiring…»). Отмена заказа при отклонении после
-  конца распродажи (`2dae4ad`) записи не получила вовсе (см. список DECISIONS
-  ниже). Ревьюер, проверяющий постепенность по датам записей, увидит расхождение.
+### 16. [low, process] DECISIONS entries lag behind the commits that made the decision
+- AGENTS.md requires an entry "in the same change as the decision". The hold
+  clamp to `ends_at` was adopted in `c9e337c` (11.09 13:13), the outbox and
+  zeroing the stock in `dd16428`/`d12a1d1` (14:11/14:14); both DECISIONS entries
+  appeared only in `9571e31` (15:05, "fix: compose wiring…"). Cancelling the
+  order on a decline after the end of the sale (`2dae4ad`) got no entry at all
+  (see the DECISIONS list below). A reviewer checking gradual progress by entry
+  dates will see the mismatch.
 
-### Проверено, дефекта не найдено (шаги 3–4, для протокола)
-- Broadcast только после `commit` во всех пяти местах: `cart.py:139-144`,
+### Checked, no defect found (steps 3–4, for the record)
+- Broadcast happens only after `commit` in all five places: `cart.py:139-144`,
   `cart.py:190-191`, `scheduler.py:58-60`, `scheduler.py:122-126`,
-  `payments.py:206-208`. Outbox-строка пишется в той же транзакции, что и
-  переход (`payments.py:164-166` до `commit` в 206; `scheduler.py:119-122`).
-- Вебхук раньше commit `/pay` невозможен по построению: `provider_ref`
-  генерирует бэкенд и коммитит (`payments.py:89-99`) до HTTP-вызова
-  (`routers/payments.py:66`); заглушка узнаёт ссылку только из этого вызова.
-- Двойное «оплатить» до commit первого: `UPDATE reservations ... WHERE
-  status='held'` сериализуется блокировкой строки; проигравший получает 0 строк
-  (E2). Partial UNIQUE `uq_payments_order_pending` — второй рубеж, до него дело
-  не доходит.
-- Оплата на границе `expires_at` параллельно с тиком: `start_payment`
-  (`expires_at > :now`) и `run_once` (`FOR UPDATE SKIP LOCKED`, `expires_at <= :now`)
-  борются за одну строку; тик, не получивший блокировку, пропускает строку и на
-  следующем тике видит `paying`. Запрос, чья транзакция началась до истечения,
-  может выиграть у тика, начавшегося после, — приемлемо.
-- Окончание распродажи при `paying`: `available = 0`, резервация остаётся;
-  `approved` позже → `sold`/`paid`/письмо (E7), `declined` позже → `cleared`,
-  заказ `cancelled`, `cart_cleared`, единица не возвращается (E8, документировано
-  в плане). `available` при этом теряет единицу навсегда — осознанно.
-- `PostgresClock.now(db)` = `transaction_timestamp()` (E4: два чтения через 0,5 с
-  дают одно значение; после `commit` — свежее). В `/pay` второе
-  `clock.now(db)` идёт после commit, значит свежее; в планировщике `now` тика
-  переиспользуется тремя функциями после промежуточных commit — согласованно
-  и безвредно. Единственный риск — будущий код, который после `commit`
-  продолжит использовать старый `now`; проверять на ревью.
-- Письмо дважды: `send_pending` (`notifications.py:57-64`) шлёт, потом
-  коммитит `sent_at`; падение между ними даёт повтор (at-most-one duplicate,
-  допущено модулем). Второй строки outbox не будет — UNIQUE `(kind, entity_id)`.
-- Cookie: HttpOnly, SameSite=Lax, Secure вне dev, срок = `SESSION_TTL_DAYS`;
-  все мутации — POST/DELETE с JSON, Lax не отдаёт cookie на cross-site POST.
-  Логи: токены, пароли, номера карт в логи не попадают (номер карты только в
-  теле POST к заглушке; заглушка не логирует). Секреты: `.env` не в git,
-  сгенерированные значения в `agent-sessions/` не найдены (grep по текущим
-  значениям и по шаблону `=[0-9a-f]{40,}`), `.env.example` секретов не содержит,
-  compose требует переменные через `${VAR:?}`.
-- Шаг 5, механика: `datetime.now/utcnow/func.now/time.time/date.today` в
-  `app/` — 0 (тест `test_no_local_time` есть); `os.environ` вне Settings — только
-  `paystub/main.py:107` (п. 7) и conftest; `time.sleep` в тестах — 0;
-  `except Exception` — только `app/scheduler.py:152` с логированием
-  (оправдано, но это [MUST]-исключение без документированного escape в модуле);
-  `relationship`/lazy-load — не используется, все связи через явные SELECT;
-  бизнес-логики в роутерах нет; `fetch` только в `src/api/client.ts`;
-  `skip/xfail` — 0; каждое поле Settings имеет потребителя (кроме п. 4 —
-  `log_level` для сервера); `.env.example` ↔ Settings проверяется тестом.
-  Все компоненты — `<script setup lang="ts">`, `v-for` с id-ключами, состояние
-  в Pinia.
+  `payments.py:206-208`. The outbox row is written in the same transaction as
+  the transition (`payments.py:164-166` before the `commit` at 206;
+  `scheduler.py:119-122`).
+- A webhook arriving before the `/pay` commit is impossible by construction:
+  `provider_ref` is generated by the backend and committed (`payments.py:89-99`)
+  before the HTTP call (`routers/payments.py:66`); the stub learns the reference
+  only from that call.
+- A double "pay" before the first one commits: `UPDATE reservations ... WHERE
+  status='held'` is serialised by the row lock; the loser gets 0 rows (E2). The
+  partial UNIQUE `uq_payments_order_pending` is the second line of defence; it
+  never comes to that.
+- Payment at the `expires_at` boundary concurrently with a tick: `start_payment`
+  (`expires_at > :now`) and `run_once` (`FOR UPDATE SKIP LOCKED`, `expires_at <= :now`)
+  compete for one row; a tick that did not get the lock skips the row and sees
+  `paying` on the next tick. A request whose transaction began before expiry
+  can beat a tick that began after it — acceptable.
+- End of the sale while `paying`: `available = 0`, the reservation stays;
+  a later `approved` → `sold`/`paid`/email (E7), a later `declined` → `cleared`,
+  order `cancelled`, `cart_cleared`, the unit is not returned (E8, documented in
+  the plan). `available` thereby loses a unit for good — deliberately.
+- `PostgresClock.now(db)` = `transaction_timestamp()` (E4: two reads 0.5 s apart
+  give the same value; after `commit` — a fresh one). In `/pay` the second
+  `clock.now(db)` comes after a commit, so it is fresh; in the scheduler the
+  tick's `now` is reused by three functions after intermediate commits —
+  consistent and harmless. The only risk is future code that keeps using the
+  old `now` after a `commit`; check for it in review.
+- Email twice: `send_pending` (`notifications.py:57-64`) sends, then commits
+  `sent_at`; a crash in between gives a repeat (at-most-one duplicate, allowed
+  by the module). There will be no second outbox row — UNIQUE `(kind, entity_id)`.
+- Cookie: HttpOnly, SameSite=Lax, Secure outside dev, lifetime =
+  `SESSION_TTL_DAYS`; all mutations are POST/DELETE with JSON, Lax does not send
+  the cookie on a cross-site POST.
+  Logs: tokens, passwords and card numbers do not reach the logs (the card
+  number is only in the body of the POST to the stub; the stub does not log).
+  Secrets: `.env` is not in git, no generated values found in `agent-sessions/`
+  (grep for the current values and for the pattern `=[0-9a-f]{40,}`),
+  `.env.example` contains no secrets, compose requires the variables via
+  `${VAR:?}`.
+- Step 5, mechanics: `datetime.now/utcnow/func.now/time.time/date.today` in
+  `app/` — 0 (the test `test_no_local_time` exists); `os.environ` outside
+  Settings — only `paystub/main.py:107` (item 7) and conftest; `time.sleep` in
+  tests — 0; `except Exception` — only `app/scheduler.py:152`, with logging
+  (justified, but it is a [MUST] exception with no documented escape in the
+  module); `relationship`/lazy-load — not used, all relations go through
+  explicit SELECTs; no business logic in routers; `fetch` only in
+  `src/api/client.ts`; `skip/xfail` — 0; every Settings field has a consumer
+  (except item 4 — `log_level` for the server); `.env.example` ↔ Settings is
+  checked by a test.
+  All components are `<script setup lang="ts">`, `v-for` with id keys, state
+  in Pinia.
 
-## Таблица State (версия аудита)
+## State table (audit version)
 
-| # | Пункт | Тест | Реальная база / коммиты / соединения | Время | Оценка | Почему отличается от README |
+| # | Item | Test | Real DB / commits / connections | Time | Assessment | Why it differs from README |
 |---|---|---|---|---|---|---|
-| 1 | До старта нельзя; в момент старта открывается у всех | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed` | да, реальные commit, один клиент | `FrozenClock` ровно на границе | **partially proven** | Совпадает. Недоказано: (а) одновременность на сервере — тест с двумя соединениями при `now == starts_at` (оба 201) и при `starts_at − 1 мкс` (оба 409) закрыл бы это; (б) на клиенте старт определяется собственным тикающим таймером от `server_now` со смещением, включающим половину RTT, а сервер не шлёт события «началось». Полностью доказуемо только после добавления `sale_status: started` из планировщика и store-теста на него. |
-| 2 | Остатки меняются у всех без обновления | `test_stock_event_reaches_second_client`, `test_sse_smoke_real_server` | да; два подписчика брокастера + один настоящий uvicorn/SSE-клиент | frozen | proven | Два подписчика — на уровне брокастера, не два HTTP-клиента; E2E на клоне: 7 событий получены внешним `curl`. |
-| 3 | Последняя единица — одному из двух | `test_last_unit_two_buyers_one_wins` | да; два `SessionFactory()`, `gather`, реальные commit | frozen | proven | — |
-| 4 | Удержание 10 мин, возврат, все видят | `test_hold_expires_returns_stock`, `test_hold_expiry_broadcasts` | да; `run_once` напрямую | frozen | proven | `loop` не прогоняется ни одним тестом (см. п. 1). |
-| 5 | Оплата до истечения завершается после | `test_payment_started_before_expiry_completes_after` | да; отдельные сессии на шаг | frozen | proven | — |
-| 6 | Зависла: заказ pending, не продаётся дважды, досчитывается | `test_hung_payment_keeps_stock`, `test_hung_payment_resolves_via_webhook`, `test_paystub_timeout_keeps_order_pending` | да | frozen | proven | «keeps_stock» остаток не проверяет; остаток доказывает тест из строки 5. Подтверждено E2E (`…9995` → resolve → paid). |
-| 7 | Двойное «оплатить» — один заказ, одно списание | `test_double_pay_same_key_one_order`, `test_double_pay_calls_paystub_once` | да, но запросы последовательные | frozen | proven (параллельность — только аудитом) | E2: `gather` двух `POST /orders` → один заказ; двух `POST /pay` → одна попытка, заглушка вызвана один раз. Тесты стоит сделать параллельными. |
-| 8 | Одно письмо о заказе | `test_order_email_sent_exactly_once` | да; повтор вебхука → та же одна строка | frozen | proven (на уровне outbox) | «Ровно одно» верно для outbox; отправка — at-most-one duplicate при падении между send и commit; в проде отправка в лог не видна (п. 4). |
-| 9 | Конец: непроданное снято, корзины очищены, владельцы уведомлены | `test_sale_end_clears_holds_and_notifies` | да, но `end_ended_sales` вызван в обход `run_once` | frozen | **not proven** (уведомление не выполняется) | Снятие (`available = 0`) и очистка корзин работают; уведомление владельцу в поставленном `loop` недостижимо — п. 1, подтверждено на клоне. |
-| T11 | Две вкладки в синхроне | строка 2 + `useRealtime.test.ts` + `sales.test.ts` «two successive stock events» | да / jsdom | — | proven, с оговоркой | Витрина и кабинет — да. Оплата из второй вкладки той же резервации — 409 навсегда (п. 5). |
+| 1 | Not before the start; opens for everyone at the moment of the start | `test_reserve_before_start_rejected`, `test_reserve_at_start_allowed` | yes, real commits, one client | `FrozenClock` exactly on the boundary | **partially proven** | Matches. Not proven: (a) simultaneity on the server — a test with two connections at `now == starts_at` (both 201) and at `starts_at − 1 µs` (both 409) would close this; (b) on the client the start is determined by its own ticking timer from `server_now` with an offset that includes half the RTT, and the server sends no "started" event. Fully provable only after adding `sale_status: started` from the scheduler and a store test for it. |
+| 2 | Stock changes for everyone without a refresh | `test_stock_event_reaches_second_client`, `test_sse_smoke_real_server` | yes; two broadcaster subscribers + one real uvicorn/SSE client | frozen | proven | The two subscribers are at the broadcaster level, not two HTTP clients; E2E on the clone: 7 events received by an external `curl`. |
+| 3 | The last unit goes to one of two | `test_last_unit_two_buyers_one_wins` | yes; two `SessionFactory()`, `gather`, real commits | frozen | proven | — |
+| 4 | 10-minute hold, return, everyone sees it | `test_hold_expires_returns_stock`, `test_hold_expiry_broadcasts` | yes; `run_once` directly | frozen | proven | `loop` is not run by any test (see item 1). |
+| 5 | A payment started before expiry completes after it | `test_payment_started_before_expiry_completes_after` | yes; separate sessions per step | frozen | proven | — |
+| 6 | Hung: order pending, not sold twice, settled later | `test_hung_payment_keeps_stock`, `test_hung_payment_resolves_via_webhook`, `test_paystub_timeout_keeps_order_pending` | yes | frozen | proven | "keeps_stock" does not check the stock; the stock is proven by the test from row 5. Confirmed by E2E (`…9995` → resolve → paid). |
+| 7 | Double "pay" — one order, one charge | `test_double_pay_same_key_one_order`, `test_double_pay_calls_paystub_once` | yes, but the requests are sequential | frozen | proven (concurrency — only by the audit) | E2: `gather` of two `POST /orders` → one order; of two `POST /pay` → one attempt, the stub called once. The tests should be made concurrent. |
+| 8 | One email per order | `test_order_email_sent_exactly_once` | yes; webhook replay → the same single row | frozen | proven (at the outbox level) | "Exactly one" holds for the outbox; sending — at-most-one duplicate on a crash between send and commit; in production the send is not visible in the log (item 4). |
+| 9 | End: unsold stock withdrawn, carts cleared, owners notified | `test_sale_end_clears_holds_and_notifies` | yes, but `end_ended_sales` is called bypassing `run_once` | frozen | **not proven** (the notification does not happen) | Withdrawal (`available = 0`) and cart clearing work; the owner notification is unreachable in the delivered `loop` — item 1, confirmed on the clone. |
+| T11 | Two tabs in sync | row 2 + `useRealtime.test.ts` + `sales.test.ts` "two successive stock events" | yes / jsdom | — | proven, with a caveat | Storefront and account — yes. Paying for the same reservation from a second tab — 409 forever (item 5). |
 
-## Записи DECISIONS, расходящиеся с кодом
+## DECISIONS entries that diverge from the code
 
-1. **2026-09-11 «Email via an outbox; sale end zeroes stock»** (`DECISIONS.md:52-57`):
-   «clears its held reservations» — в проде удержания уходят в `expired` через
-   `run_once`, а не в `cleared`, и без уведомления (п. 1). «the scheduler sends
-   them through the email stub» — отправка в лог не наблюдаема (п. 4).
-2. **2026-09-10 «Declined payment keeps the reservation and the order»**
-   (`DECISIONS.md:119-122`): после `ends_at` код переводит резервацию в `cleared`
-   и **отменяет заказ** с уведомлением (`app/services/payments.py:185-203`,
-   коммит `2dae4ad`). План (`docs/plan.md:217-218`) обещал «заказ не меняется».
-   Записи, которая бы это superseded, нет: `2dae4ad` DECISIONS не трогал.
-3. **2026-09-11 «Sale times are absolute, in the shop's IANA zone»**
-   (`DECISIONS.md:80-85`): «renders the times back in that zone» — API отдаёт
-   `starts_at`/`ends_at` в UTC (`...Z`) плюс отдельное поле `timezone`
+1. **2026-09-11 "Email via an outbox; sale end zeroes stock"** (`DECISIONS.md:52-57`):
+   "clears its held reservations" — in production holds go to `expired` via
+   `run_once`, not to `cleared`, and without a notification (item 1). "the
+   scheduler sends them through the email stub" — the send is not observable in
+   the log (item 4).
+2. **2026-09-10 "Declined payment keeps the reservation and the order"**
+   (`DECISIONS.md:119-122`): after `ends_at` the code moves the reservation to
+   `cleared` and **cancels the order** with a notification
+   (`app/services/payments.py:185-203`, commit `2dae4ad`). The plan
+   (`docs/plan.md:217-218`) promised "the order does not change". There is no
+   entry that would supersede this: `2dae4ad` did not touch DECISIONS.
+3. **2026-09-11 "Sale times are absolute, in the shop's IANA zone"**
+   (`DECISIONS.md:80-85`): "renders the times back in that zone" — the API
+   returns `starts_at`/`ends_at` in UTC (`...Z`) plus a separate `timezone` field
    (`app/routers/sales.py:75-77`; E2E: `"starts_at":"2026-09-12T05:49:24Z","timezone":"UTC"`).
-4. **2026-09-12 «Demo sale is seeded, keyed by title…»** (`DECISIONS.md:23-33`):
-   «the check-then-act race is unreachable» — достижима (п. 9, E6).
-5. **2026-09-12 «Clock reads now() through the request's own session»**:
-   реализовано как записано; семантика «transaction start time» подтверждена (E4).
-6. **2026-09-10 «No default secrets in compose»**: для compose верно; но
-   `Settings.paystub_webhook_secret = "dev-secret"` и такой же дефолт в paystub
-   означают, что вне compose бэкенд и заглушка стартуют с известным секретом
-   (п. 7). Запись про демо-пароль магазина это оговаривает, про секрет
-   вебхука — нет.
+4. **2026-09-12 "Demo sale is seeded, keyed by title…"** (`DECISIONS.md:23-33`):
+   "the check-then-act race is unreachable" — it is reachable (item 9, E6).
+5. **2026-09-12 "Clock reads now() through the request's own session"**:
+   implemented as written; the "transaction start time" semantics confirmed (E4).
+6. **2026-09-10 "No default secrets in compose"**: true for compose; but
+   `Settings.paystub_webhook_secret = "dev-secret"` and the same default in
+   paystub mean that outside compose the backend and the stub start with a known
+   secret (item 7). The entry about the shop's demo password calls this out; the
+   one about the webhook secret does not.
 
-Остальные записи (SSE вместо WebSocket и его пересмотр на native `EventSource`;
-один процесс; paystub как HTTP-сервис с вебхуком; сессии без SECRET_KEY;
-argon2id; один активный hold на покупателя; попытки оплаты с одним pending;
-guard по времени в переходе; «зависла» = pending и таймаут; без сверки;
-один источник времени; fire-late; порог покрытия фронтенда; AGENTS.md;
-модули правил; clamp удержания к `ends_at`; демо-аккаунт магазина) — совпадают
-с кодом.
+The remaining entries (SSE instead of WebSocket and its revision to native
+`EventSource`; one process; paystub as an HTTP service with a webhook; sessions
+without SECRET_KEY; argon2id; one active hold per buyer; payment attempts with a
+single pending; a time guard in the transition; "hung" = pending and a timeout;
+no reconciliation; a single time source; fire-late; the frontend coverage
+threshold; AGENTS.md; rule modules; clamping the hold to `ends_at`; the shop's
+demo account) match the code.
 
-## README «Next steps» против того, что аудит признал недоказанным
+## README "Next steps" versus what the audit found unproven
 
-`README.md:96-105` перечисляет LISTEN/NOTIFY и worker, автотаймаут зависших
-платежей со сверкой, пагинацию. Не упомянуто:
+`README.md:96-105` lists LISTEN/NOTIFY and a worker, an auto-timeout for hung
+payments with reconciliation, pagination. Not mentioned:
 
-- Дефекты, а не «следующий заход» (в Next steps им не место, их надо чинить):
-  уведомление при конце распродажи (п. 1); оплата из второй вкладки (п. 5);
-  невидимые INFO-логи и почтовая заглушка (п. 4).
-- Осознанные ограничения, которые честнее записать в State/Next steps:
-  единица, безвозвратно теряемая при отклонении после `ends_at` (`available`
-  уже 0); отсутствие серверного события «распродажа началась» — единственный
-  путь сделать строку 1 полностью доказуемой; `/api/events` без авторизации
-  (п. 12); блокирующий argon2 (п. 6).
+- Defects, not a "next iteration" (they don't belong in Next steps, they need
+  fixing): the notification at the end of the sale (item 1); payment from a
+  second tab (item 5); invisible INFO logs and the mail stub (item 4).
+- Deliberate limitations that would be more honest to record in State/Next steps:
+  the unit irrecoverably lost on a decline after `ends_at` (`available` is
+  already 0); the absence of a server-side "sale started" event — the only way to
+  make row 1 fully provable; `/api/events` without authorisation (item 12);
+  blocking argon2 (item 6).
 
-## Вердикт: **fix-first**
+## Verdict: **fix-first**
 
-Блокируют: п. 1 (приёмочный пункт 9 не выполняется, а README говорит proven),
-п. 2 и п. 3 (обязательные deliverables ТЗ: модель в README, экспорт последней
-сессии), п. 4 (заявленный контракт почтовой заглушки не наблюдаем). После них —
-п. 5 (две вкладки при оплате) и п. 6.
+Blocking: item 1 (acceptance item 9 does not hold, while README says proven),
+items 2 and 3 (mandatory spec deliverables: the model in README, the export of
+the last session), item 4 (the declared contract of the mail stub is not
+observable). After them — item 5 (two tabs at payment) and item 6.
 
-## Шаг 1: что запускалось и с каким результатом
+## Step 1: what was run and with what result
 
-Машина аудита: macOS, Docker Desktop, uv 0.12.x, Node 24.2.0 через nvm.
+Audit machine: macOS, Docker Desktop, uv 0.12.x, Node 24.2.0 via nvm.
 
-| Команда | Результат |
+| Command | Result |
 |---|---|
-| `docker compose up -d db` | `lastunit-db-1` уже был поднят и healthy. |
-| `make check` (первый прогон, в shell Node **16.20.2**) | **FAIL** на `frontend-check`: `eslint . → TypeError: configs.findLastIndex is not a function` (`@vue/eslint-config-typescript`). Причина — окружение: `frontend/.nvmrc` = 24, README Prerequisites требует Node 24. Не дефект репозитория. Бэкенд-часть прошла: 75 passed, coverage 94.66 % (порог 85). |
-| `make check` (Node 24.2.0) | **PASS**. Backend: ruff, format, mypy, 75 passed, 3 DeprecationWarning (starlette/httpx, не проекта), coverage 94.66 %. Frontend: lint, prettier, vue-tsc, 45 passed (7 файлов), coverage lines 95.62 % / statements 87.38 % (порог 80). |
-| `make test-integration` | **PASS**: 59 passed, 11.4 с. |
-| `make ci` | **PASS**: check + `frontend-build` + `uv audit` (0 уязвимостей в 36 пакетах) + `npm audit` (0). |
-| `make docker-build` | **PASS**: три образа собраны. |
-| `git clone <repo> <scratch>/clone` → `make install` | **PASS**, 4,2 с (`make env` создал `.env` с сгенерированными секретами; `uv sync`; `npm ci`). |
-| `make up` в клоне | **PASS**, 10,8 с, четыре контейнера. Отклонение от буквального README: на этой машине порты 5432/8000/8080 заняты посторонними контейнерами, поэтому в клон добавлен `docker-compose.override.yml`, меняющий **только host-порты** (15432/18000/18001/18080); внутренняя схема (`backend:8000`, `paystub:8001`, `db:5432`, nginx-proxy) не тронута. |
-| `curl /api/health` (через backend) | `200 {"status":"ok"}` — после ~6 с (миграции + seed в entrypoint). |
-| `curl /api/sales` (через backend и через nginx :80) | `200`, одна демо-распродажа `Demo flash sale`, 5 шт., `phase: upcoming`, старт через минуту после seed. |
+| `docker compose up -d db` | `lastunit-db-1` was already up and healthy. |
+| `make check` (first run, Node **16.20.2** in the shell) | **FAIL** on `frontend-check`: `eslint . → TypeError: configs.findLastIndex is not a function` (`@vue/eslint-config-typescript`). Cause — the environment: `frontend/.nvmrc` = 24, README Prerequisites requires Node 24. Not a repository defect. The backend half passed: 75 passed, coverage 94.66 % (threshold 85). |
+| `make check` (Node 24.2.0) | **PASS**. Backend: ruff, format, mypy, 75 passed, 3 DeprecationWarning (starlette/httpx, not the project's), coverage 94.66 %. Frontend: lint, prettier, vue-tsc, 45 passed (7 files), coverage lines 95.62 % / statements 87.38 % (threshold 80). |
+| `make test-integration` | **PASS**: 59 passed, 11.4 s. |
+| `make ci` | **PASS**: check + `frontend-build` + `uv audit` (0 vulnerabilities in 36 packages) + `npm audit` (0). |
+| `make docker-build` | **PASS**: three images built. |
+| `git clone <repo> <scratch>/clone` → `make install` | **PASS**, 4.2 s (`make env` created `.env` with generated secrets; `uv sync`; `npm ci`). |
+| `make up` in the clone | **PASS**, 10.8 s, four containers. Deviation from the literal README: on this machine ports 5432/8000/8080 are taken by unrelated containers, so a `docker-compose.override.yml` was added to the clone that changes **only the host ports** (15432/18000/18001/18080); the internal layout (`backend:8000`, `paystub:8001`, `db:5432`, nginx proxy) is untouched. |
+| `curl /api/health` (via backend) | `200 {"status":"ok"}` — after ~6 s (migrations + seed in the entrypoint). |
+| `curl /api/sales` (via backend and via nginx :80) | `200`, one demo sale `Demo flash sale`, 5 units, `phase: upcoming`, starting one minute after seed. |
 | `curl /` (nginx) | `200`, SPA. |
-| `curl -N /api/events` (через backend и через nginx, 3 с) | `200 text/event-stream`, chunked, `X-Accel-Buffering: no`; за 3 с тела нет (ping раз в 15 с) — соединение держится. |
+| `curl -N /api/events` (via backend and via nginx, 3 s) | `200 text/event-stream`, chunked, `X-Accel-Buffering: no`; no body within 3 s (ping every 15 s) — the connection stays open. |
 | `curl :8001/docs` (paystub) | `200`. |
-| `POST /api/auth/login` (`shop@example.com`/`shop-password`) | `200`, `Set-Cookie: session=…; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax` (без `Secure` — dev). |
-| E2E на клоне (сценарий скриптом): распродажа на 90 с, 3 шт.; b1 reserve→order→pay `…0000`; b2 pay `…9995` → `check` (pending) → `resolve` на заглушке; b3 reserve без оплаты; ожидание конца | b1: `approved` синхронно, вебхук от заглушки принят (`POST /api/payments/webhook 200`), заказ `paid`. b2: `pending`, `check` → `pending`, `resolve approved` → заказ `paid`. Stats до конца: `available 0, sold 2, in_cart 1`. После конца: `phase ended`, `available 0`, `in_cart 0`; резервации `sold, sold, expired`; notifications: два `order_paid` (`sent = t`), **`cart_cleared` — нет**; SSE у внешнего клиента: 4 `stock_changed`, 2 `order_status`, 1 `sale_status ended`. |
-| `docker compose down -v` в клоне | выполнено, стек и volume удалены. |
-| Эксперименты E1–E8 (скрипт вне репо, БД `app_test`) | E1 порядок тика → `notifications=0` (п. 1). E2 параллельные `/orders` и `/pay` → 1 заказ, 1 попытка, 1 вызов заглушки (п. 11). E3 вебхук: без подписи 401; не-ASCII подпись → `TypeError` (п. 10). E4 `now()` = начало транзакции. E5 argon2 51/39 мс (п. 6). E6 два seed → 2 распродажи (п. 9). E7 approve после конца → `sold/paid`, письмо. E8 pay после `ends_at` до тика → `HoldExpiredError`; decline после конца → `cleared/cancelled`, единица не возвращена. |
+| `POST /api/auth/login` (`shop@example.com`/`shop-password`) | `200`, `Set-Cookie: session=…; HttpOnly; Max-Age=2592000; Path=/; SameSite=lax` (no `Secure` — dev). |
+| E2E on the clone (scripted scenario): a 90 s sale, 3 units; b1 reserve→order→pay `…0000`; b2 pay `…9995` → `check` (pending) → `resolve` on the stub; b3 reserve without paying; wait for the end | b1: `approved` synchronously, the webhook from the stub accepted (`POST /api/payments/webhook 200`), order `paid`. b2: `pending`, `check` → `pending`, `resolve approved` → order `paid`. Stats before the end: `available 0, sold 2, in_cart 1`. After the end: `phase ended`, `available 0`, `in_cart 0`; reservations `sold, sold, expired`; notifications: two `order_paid` (`sent = t`), **no `cart_cleared`**; SSE at the external client: 4 `stock_changed`, 2 `order_status`, 1 `sale_status ended`. |
+| `docker compose down -v` in the clone | done, stack and volume removed. |
+| Experiments E1–E8 (script outside the repo, DB `app_test`) | E1 tick order → `notifications=0` (item 1). E2 concurrent `/orders` and `/pay` → 1 order, 1 attempt, 1 stub call (item 11). E3 webhook: no signature 401; non-ASCII signature → `TypeError` (item 10). E4 `now()` = transaction start. E5 argon2 51/39 ms (item 6). E6 two seeds → 2 sales (item 9). E7 approve after the end → `sold/paid`, email. E8 pay after `ends_at` before the tick → `HoldExpiredError`; decline after the end → `cleared/cancelled`, unit not returned. |
 
-## Вопросы человеку
+## Questions for the human
 
-1. Пункт 9: при исправлении п. 1 — должны ли удержания, истёкшие ровно в момент
-   конца распродажи, считаться «очищенными по окончании» (письмо) или «истёкшими»
-   (без письма)? Сейчас `expires_at` clamp'ится к `ends_at`, и эти два события
-   неразличимы; от ответа зависит, менять порядок в `loop` или условие в `run_once`.
-2. Отклонение после `ends_at` отменяет заказ (`2dae4ad`) вопреки плану и
-   DECISIONS 2026-09-10. Это осознанное решение, требующее superseding-записи, или
-   откат к «заказ не меняется»?
-3. `DECISIONS` «renders the times back in that zone» — нужна ли отдача времени в
-   зоне магазина в API (и тогда правка кода), или исправить запись?
-4. Публичный `/api/events` со статусами всех заказов — приемлемо для демо или
-   закрыть авторизацией?
-5. Единица, потерянная при отклонении после конца распродажи (`available` уже 0),
-   — фиксируется как принятое поведение в README «State»/«Next steps»?
-6. Экспорт сессии этапа 8 (`2026-09-12-stage-8-submission.jsonl`): будет добавлен
-   или в md записать, что его нет?
-7. История коммитов: пары с разницей 0–3 с (`7752cdf`/`597c7a0`/`e617d25`,
-   `d91b529`/`a6b7bf6`, `4c869d8`/`5f699ac`, `28c24c8`/`8044d03`) — созданы одним
-   заходом; ревьюер, проверяющий «ход работы во времени», это увидит. Оставить или
-   пояснить в `agent-sessions/`?
-8. Секрет вебхука со значением по умолчанию `dev-secret` в двух местах — оставить
-   как демо-удобство (тогда записать в DECISIONS рядом с демо-паролем) или убрать
-   дефолт?
+1. Item 9: when fixing item 1 — should holds that expire exactly at the moment
+   the sale ends count as "cleared at the end" (email) or as "expired"
+   (no email)? Right now `expires_at` is clamped to `ends_at`, and these two
+   events are indistinguishable; the answer decides whether to change the order
+   in `loop` or the condition in `run_once`.
+2. A decline after `ends_at` cancels the order (`2dae4ad`), contrary to the plan
+   and DECISIONS 2026-09-10. Is this a deliberate decision that needs a
+   superseding entry, or a rollback to "the order does not change"?
+3. `DECISIONS` "renders the times back in that zone" — should the API return
+   times in the shop's zone (and then the code changes), or should the entry be
+   corrected?
+4. A public `/api/events` with the statuses of all orders — acceptable for a
+   demo, or close it behind authorisation?
+5. The unit lost on a decline after the end of the sale (`available` is already
+   0) — is it recorded as accepted behaviour in README "State"/"Next steps"?
+6. The stage 8 session export (`2026-09-12-stage-8-submission.jsonl`): will it be
+   added, or should the md state that it does not exist?
+7. Commit history: pairs 0–3 s apart (`7752cdf`/`597c7a0`/`e617d25`,
+   `d91b529`/`a6b7bf6`, `4c869d8`/`5f699ac`, `28c24c8`/`8044d03`) were created in
+   one pass; a reviewer checking "progress of the work over time" will see this.
+   Leave it, or explain it in `agent-sessions/`?
+8. The webhook secret with the default value `dev-secret` in two places — keep
+   it as a demo convenience (then record it in DECISIONS next to the demo
+   password) or remove the default?
 
 ## Security review
 
-Отдельный прогон `/security-review` (Claude Code, Claude Fable 5.1) по тому же
-диапазону `efdaea8..HEAD`, уже после fix-first-коммитов (`ab0eaa3`). Метод:
-три параллельных поиска по зонам (auth/API-роутеры; платежи, вебхук, paystub,
-планировщик, инфраструктура; фронтенд и SSE), затем отдельный фильтр ложных
-срабатываний на каждого кандидата с порогом 8/10. Тесты, `*.md` и
-`agent-sessions/` вне области; DoS, rate limiting и хранение секретов на диске
-исключены правилами скилла.
+A separate `/security-review` run (Claude Code, Claude Fable 5.1) over the same
+range `efdaea8..HEAD`, after the fix-first commits (`ab0eaa3`). Method: three
+parallel searches by area (auth/API routers; payments, webhook, paystub,
+scheduler, infrastructure; frontend and SSE), then a separate false-positive
+filter for each candidate with a threshold of 8/10. Tests, `*.md` and
+`agent-sessions/` are out of scope; DoS, rate limiting and secrets stored on disk
+are excluded by the skill's rules.
 
-**Результат: ни одного HIGH или MEDIUM-нахождения.** Шесть кандидатов уровня
-Low, каждый отброшен фильтром с оценкой 2/10.
+**Result: no HIGH or MEDIUM findings.** Six Low-level candidates, each discarded
+by the filter with a score of 2/10.
 
-| Кандидат | Место | Почему отброшен |
+| Candidate | Location | Why discarded |
 |---|---|---|
-| Paystub опубликован на хосте; `POST /payments` с произвольным `callback_url` и `/resolve` без аутентификации | `docker-compose.yml:46-47`, `paystub/main.py:125-156` | Заглушка по дизайну (README, DECISIONS). Подделка вебхука требует pending `provider_ref` (128 бит, отдаётся только роли shop); результат совпадает с вводом карты `…0000`. |
-| SSE-поток не закрывается при logout; `user_id` фиксируется при подключении | `app/routers/events.py:27-32`, `frontend/src/composables/useRealtime.ts` | Payload — только `order_id` и `status`; сторы его не рендерят, а перезапрашивают с текущей cookie. Сценарий требует общий браузер и смену пользователя в одной вкладке без перезагрузки. |
-| `APP_ENV` по умолчанию `dev`: cookie без `Secure`, `/docs` открыт | `app/config.py:17`, `app/routers/auth.py:72` | Env-переменная — доверенное значение; в стеке нет TLS-терминации; переключатель задокументирован в README и `.env.example`. |
-| Register возвращает 409 для занятого email | `app/routers/auth.py:40-45` | Стандартное поведение регистрации; email-верификация невозможна с почтовой заглушкой; утечка — один бит. |
-| Пароль без `min_length` | `app/routers/auth.py:19-26` | Пробел в hardening; стороннего пути атаки нет без brute force (исключён правилами). |
-| httpx логирует URL с `provider_ref` при `check` | `app/main.py:37`, `app/paystub_client.py:49` | Логирование URL считается безопасным; ref уже виден роли shop через `/shop/sales/{id}/stats`. |
+| Paystub is published on the host; `POST /payments` with an arbitrary `callback_url` and `/resolve` without authentication | `docker-compose.yml:46-47`, `paystub/main.py:125-156` | A stub by design (README, DECISIONS). Forging a webhook requires a pending `provider_ref` (128 bits, returned only to the shop role); the result is the same as entering card `…0000`. |
+| The SSE stream is not closed on logout; `user_id` is fixed at connection time | `app/routers/events.py:27-32`, `frontend/src/composables/useRealtime.ts` | The payload is only `order_id` and `status`; the stores do not render it but refetch with the current cookie. The scenario requires a shared browser and a user switch in one tab without a reload. |
+| `APP_ENV` defaults to `dev`: cookie without `Secure`, `/docs` open | `app/config.py:17`, `app/routers/auth.py:72` | The env variable is a trusted value; the stack has no TLS termination; the switch is documented in README and `.env.example`. |
+| Register returns 409 for a taken email | `app/routers/auth.py:40-45` | Standard registration behaviour; email verification is impossible with a mail stub; the leak is one bit. |
+| Password without `min_length` | `app/routers/auth.py:19-26` | A hardening gap; no third-party attack path without brute force (excluded by the rules). |
+| httpx logs the URL with `provider_ref` on `check` | `app/main.py:37`, `app/paystub_client.py:49` | Logging URLs is considered safe; the ref is already visible to the shop role via `/shop/sales/{id}/stats`. |
 
-### Проверено, дефекта не найдено
-- **Сессии.** `secrets.token_urlsafe(32)`, SHA-256 хеш в БД с UNIQUE, проверка
-  `expires_at` по часам БД, новый токен на каждый login, logout удаляет строку.
-  Cookie `httponly` + `samesite=lax`; CORS-middleware нет, значит cross-site
-  POST/DELETE не несут cookie.
-- **Авторизация.** Каждый мутирующий и приватный маршрут идёт через
-  `current_user` или `require_shop`; `register` жёстко назначает роль BUYER.
-  Все id-параметры (reservation, order) скоупятся по `user_id` в сервисном
-  запросе; ключ идемпотентности защищён `UNIQUE(user_id, idempotency_key)`.
-  `/api/events` резолвит cookie тем же `user_for_token`, `order_status`
-  доставляется только владельцу. Побочный эффект этого скоупа — функциональный,
-  не security: витрина магазина подписывалась на `order_status` и после скоупа
-  перестала видеть оплаты (события склада тут нет — `available` уменьшается ещё
-  на этапе брони). Исправлено отдельным событием `sale_stats` без скоупа, см.
-  DECISIONS и `test_payment_result_broadcasts_sale_stats_to_everyone`.
-- **Платежи.** Вебхук: HMAC-SHA256 по сырому телу, `compare_digest` на bytes.
-  Replay — no-op через guarded `UPDATE … WHERE status='pending'` и partial
-  unique index на `(order_id) WHERE status='pending'`. `amount_minor` берётся из
-  `sale.price_minor`, не от клиента. Номер карты не хранится и не логируется.
-  `callback_url` и URL заглушки — только из `Settings`.
-- **Инъекции.** `text()` только с литералами (`SELECT now()`, advisory lock);
-  `ZoneInfo` отбрасывает `..` и абсолютные пути; email нормализуется и
-  ограничен CHECK/UNIQUE. Во фронтенде нет `v-html`/`innerHTML`; единственный
-  `:href` — константа с `rel="noopener"`; redirect после login обрабатывается
-  vue-router как same-origin путь.
-- **Секреты и сборка.** compose использует `${VAR:?}`, `.env.example` без
-  значений, `.env` не коммитился, `.dockerignore` исключает `.env*`,
-  `loadEnv` с дефолтным префиксом `VITE_`, `sourcemap: false`, CI с
-  `permissions: contents: read` и SHA-пинами, `npm ci --ignore-scripts`.
-- **Seed и prod-guard.** `seed_demo_sale` и демо-пользователь не создаются при
-  `APP_ENV=prod`; `/docs` и `/openapi.json` в prod отключены.
+### Checked, no defect found
+- **Sessions.** `secrets.token_urlsafe(32)`, SHA-256 hash in the DB with UNIQUE,
+  `expires_at` checked against the DB clock, a new token on every login, logout
+  deletes the row. Cookie `httponly` + `samesite=lax`; there is no CORS
+  middleware, so cross-site POST/DELETE requests carry no cookie.
+- **Authorisation.** Every mutating and private route goes through
+  `current_user` or `require_shop`; `register` hard-assigns the BUYER role.
+  All id parameters (reservation, order) are scoped by `user_id` in the service
+  query; the idempotency key is protected by `UNIQUE(user_id, idempotency_key)`.
+  `/api/events` resolves the cookie with the same `user_for_token`, and
+  `order_status` is delivered only to the owner. A side effect of this scoping is
+  functional, not security: the shop dashboard subscribed to `order_status` and
+  stopped seeing payments after the scoping (there is no stock event here —
+  `available` already drops at the hold stage). Fixed with a separate unscoped
+  `sale_stats` event, see DECISIONS and
+  `test_payment_result_broadcasts_sale_stats_to_everyone`.
+- **Payments.** Webhook: HMAC-SHA256 over the raw body, `compare_digest` on bytes.
+  Replay is a no-op via the guarded `UPDATE … WHERE status='pending'` and the
+  partial unique index on `(order_id) WHERE status='pending'`. `amount_minor` is
+  taken from `sale.price_minor`, not from the client. The card number is neither
+  stored nor logged. `callback_url` and the stub URL come only from `Settings`.
+- **Injections.** `text()` only with literals (`SELECT now()`, advisory lock);
+  `ZoneInfo` rejects `..` and absolute paths; email is normalised and
+  constrained by CHECK/UNIQUE. The frontend has no `v-html`/`innerHTML`; the only
+  `:href` is a constant with `rel="noopener"`; the redirect after login is handled
+  by vue-router as a same-origin path.
+- **Secrets and build.** compose uses `${VAR:?}`, `.env.example` has no values,
+  `.env` was never committed, `.dockerignore` excludes `.env*`,
+  `loadEnv` with the default `VITE_` prefix, `sourcemap: false`, CI with
+  `permissions: contents: read` and SHA pins, `npm ci --ignore-scripts`.
+- **Seed and prod guard.** `seed_demo_sale` and the demo user are not created
+  with `APP_ENV=prod`; `/docs` and `/openapi.json` are disabled in prod.
 
-## Последующий ревью (`/code-review`, Claude Opus 5)
+## Follow-up review (`/code-review`, Claude Opus 5)
 
-Прогон по тем же fix-first-коммитам нашёл два дефекта, внесённых самими
-исправлениями; оба закрыты в этом же проходе.
+A run over the same fix-first commits found two defects introduced by the
+fixes themselves; both were closed in the same pass.
 
-| Дефект | Место | Исправление |
+| Defect | Location | Fix |
 |---|---|---|
-| Скоуп `order_status` по покупателю отрезал витрину магазина от живых обновлений sold/revenue/pending | `app/services/payments.py`, `frontend/src/stores/shop.ts` | Дополнительное событие `sale_stats` без скоупа; витрина подписана на него вместо `order_status`. Тест: `test_payment_result_broadcasts_sale_stats_to_everyone` |
-| Повторное чтение брони в `start_payment` было no-op: identity map сессии уже держал устаревший объект, проигравший гонку получал «reservation is not held» | `app/services/payments.py` | `.execution_options(populate_existing=True)` на перечитывающем `select`. Тест: `test_start_payment_with_stale_hold_in_session_reports_pending_payment` (детерминированный, без опоры на планировщик корутин) |
+| Scoping `order_status` by buyer cut the shop dashboard off from live sold/revenue/pending updates | `app/services/payments.py`, `frontend/src/stores/shop.ts` | An additional unscoped `sale_stats` event; the dashboard subscribes to it instead of `order_status`. Test: `test_payment_result_broadcasts_sale_stats_to_everyone` |
+| Re-reading the hold in `start_payment` was a no-op: the session's identity map already held the stale object, and the race loser got "reservation is not held" | `app/services/payments.py` | `.execution_options(populate_existing=True)` on the re-reading `select`. Test: `test_start_payment_with_stale_hold_in_session_reports_pending_payment` (deterministic, not relying on the coroutine scheduler) |
 
-Оба теста проверены «красными» до исправления.
+Both tests were verified red before the fix.
