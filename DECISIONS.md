@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-01 — README opens in English; the Russian note to the reviewer is gone
+Supersedes one consequence of the 2026-09-13 language entry ("README says so
+where the reviewer sees it"). The repository is now read beyond the review, so
+the note above the fold is rewritten in English: it still maps which documents
+are Russian and points here for the reason, but drops the reviewer-only offer
+to translate on request. The rest of the language split is unchanged.
+
 ## 2026-09-22 — A hand-written project `verify` skill, shadowing the built-in
 Claude Code's bundled `/verify` is meant to save its build-and-drive recipe to
 `.claude/skills/verify/SKILL.md` after a successful cold start. The run of
@@ -19,6 +26,8 @@ from that report, with the two findings fixed since (sale-created broadcast,
 refetch on tab return) left out. A same-named project skill replaces the
 built-in `/verify`, which is the sanctioned exception for `verify`; the skill
 therefore carries the verdict rules too, not only the commands.
+
+## 2026-09-14 — One gitleaks allowlist: a canonical UUID is not a secret
 Supersedes the "no exception was added to the gitleaks config" choice recorded
 in `agent-sessions/2026-09-12-runtime-verification.md`. That choice was right for
 its case -- a real invented password, where editing the export was cheaper than

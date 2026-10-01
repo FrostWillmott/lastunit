@@ -8,15 +8,12 @@
 ![Vue 3](https://img.shields.io/badge/Vue-3-4FC08D?logo=vuedotjs&logoColor=white)
 ![PostgreSQL 17](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
 
-> Документация проекта — на английском: компания работает на международный
-> рынок и сама публикуется по-английски, поэтому всё, что потенциально уходит
-> клиенту, я пишу так же. По-русски здесь то, что адресовано проверяющему:
-> [`docs/handover-ru.md`](docs/handover-ru.md) — маршрут по репозиторию по
-> пунктам ТЗ, `docs/plan.md`, оба аудита и `docs/verification-2026-09-12.md`;
-> `docs/acceptance.md` — исходное ТЗ, сохранено как есть. Любой документ,
-> включая этот README, переведём на русский по первому запросу и пришлём
-> вместо оригинала или отдельно. Почему так — запись «English for anything
-> a client could receive» в `DECISIONS.md`.
+> The project documentation is in English. A few working documents are in
+> Russian: [`docs/handover-ru.md`](docs/handover-ru.md) (a route through the
+> repository along the brief), `docs/plan.md`, both audits and
+> `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the original brief
+> in Russian, kept verbatim. Why the split: the entry "English for anything a
+> client could receive" in `DECISIONS.md`.
 
 ## What it is
 
