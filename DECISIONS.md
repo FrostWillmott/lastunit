@@ -10,6 +10,14 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-01 — Session exports removed from `main`
+`agent-sessions/` served the review: the spec asked for the agent's session
+export, and the reviewed state is fixed by the tag `submission-2026-09-14`,
+where the exports stay. On `main` they are no longer needed, so the directory is
+deleted and session logs are no longer exported. The links that a reviewer
+follows (`docs/handover-ru.md`) now point at the tag; dated audits and the plan
+keep their original paths as historical record.
+
 ## 2026-10-01 — README opens in English; the Russian note to the reviewer is gone
 Supersedes one consequence of the 2026-09-13 language entry ("README says so
 where the reviewer sees it"). The repository is now read beyond the review, so
