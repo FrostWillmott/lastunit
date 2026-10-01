@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-01 — README opens in English; the Russian note to the reviewer is gone
+Supersedes one consequence of the 2026-09-13 language entry ("README says so
+where the reviewer sees it"). The repository is now read beyond the review, so
+the note above the fold is rewritten in English: it still maps which documents
+are Russian and points here for the reason, but drops the reviewer-only offer
+to translate on request. The rest of the language split is unchanged.
+
 ## 2026-09-14 — One gitleaks allowlist: a canonical UUID is not a secret
 Supersedes the "no exception was added to the gitleaks config" choice recorded
 in `agent-sessions/2026-09-12-runtime-verification.md`. That choice was right for
