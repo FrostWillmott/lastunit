@@ -111,10 +111,12 @@ endif
 # ---- supply chain / containers --------------------------------------------
 # `uv audit` (uv >= 0.12, preview) queries OSV against uv.lock directly — no
 # export, no second tool. The version guard gives a clear message instead of
-# "unrecognized subcommand" on an old uv.
+# "unrecognized subcommand" on an old uv. Dev dependencies are scanned too: they
+# run on developer machines and in CI, and the 2026-10-01 virtualenv advisories
+# came in through pre-commit, invisible to a --no-dev scan.
 audit:
 	@uv audit --help >/dev/null 2>&1 || { echo "make audit needs uv >= 0.12 — run: uv self update"; exit 1; }
-	uv audit --locked --no-dev --preview-features audit-command
+	uv audit --locked --preview-features audit-command
 ifneq ($(HAS_FRONTEND),)
 	cd frontend && npm audit --audit-level=high
 endif
