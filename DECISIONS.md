@@ -10,6 +10,17 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-01 — English only, the spec included
+Supersedes the 2026-09-13 language split and the README-note entry below it.
+With the review over, the repository is read as a public project, and a second
+language serves no reader of it. Every document is now English: `docs/plan.md`,
+both audits, `docs/verification-2026-09-12.md`, and `docs/handover-ru.md`,
+renamed to `docs/handover.md`. The spec `docs/acceptance.md` is translated
+too, numbering kept 1:1 so the README "State" table still points at the right
+bullets; the Russian original stays under the tag `submission-2026-09-14`.
+The two Russian terms quoted inside past entries of this log were translated in
+place — the only edit to past entries, made on explicit instruction.
+
 ## 2026-10-01 — Session exports removed from `main`
 `agent-sessions/` served the review: the spec asked for the agent's session
 export, and the reviewed state is fixed by the tag `submission-2026-09-14`,
@@ -66,7 +77,7 @@ Recorded before submission so a reader can tell a choice from an omission.
 ## 2026-09-13 — The reviewer handover note stays, as `docs/handover-ru.md`
 Supersedes the "there is none in the repository at the moment" aside in the
 language entry below: the note is back. It is a route map and not a second
-README — each of the spec's seven "Что мы ожидаем от вас" points gets a link
+README — each of the spec's seven "What we expect from you" points gets a link
 into the repository instead of a retelling, which is what keeps it cheap to hold
 correct. It was briefly removed the same day before this reversed that.
 
@@ -100,7 +111,7 @@ reviewer alone or kept as a working document — `docs/plan.md`, both audits
 (`docs/plan-audit-2026-09-10.md`, `docs/code-audit-2026-09-12.md`) and
 `docs/verification-2026-09-12.md`. `docs/acceptance.md` is the customer's
 brief and stays verbatim, which is also why English documents quote its terms
-untranslated ("Ожидаемое поведение"). In `agent-sessions/` the hand-written
+untranslated ("Expected behaviour"). In `agent-sessions/` the hand-written
 part is Russian — the directory's `README.md` and the per-session notes; the
 transcripts keep whatever language each session ran in and are never
 translated, and the only edit an export ever gets is redaction of a secret,
