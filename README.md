@@ -49,8 +49,9 @@ The work was split across models on purpose, in separate sessions:
 
 The split is the point: a mistake has to survive a different model in a
 different session before it reaches the repository, and both audits found
-defects that the implementer's own review had passed. The full per-session
-tool/model record lives in `agent-sessions/`.
+defects that the implementer's own review had passed. The per-session
+tool/model record was kept in `agent-sessions/` up to the reviewed state (tag
+`submission-2026-09-14`) and removed afterwards.
 
 Why Claude Code. Anthropic's models have historically been the easiest for me to
 work with — frontier models that hold up in independent reviews, not only by
