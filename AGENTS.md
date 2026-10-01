@@ -12,24 +12,20 @@ this file and adds Claude Code specifics; other agents read this file directly.
 
 ## Project
 Flash-sale service: a shop lists a batch of goods at a special price for a
-short window and there are more buyers than stock. The spec is `docs/acceptance.md` (Russian);
-its "Ожидаемое поведение" bullets are the acceptance criteria. Backend: FastAPI
+short window and there are more buyers than stock. The spec is `docs/acceptance.md`;
+its "Expected behaviour" bullets are the acceptance criteria. Backend: FastAPI
 on Python 3.12 (uv). Frontend: Vue 3 + TypeScript (Vite, npm). Storage:
 PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
-Language: everything that can reach a client is English (code, commit messages,
-`README.md`, `AGENTS.md`, `.claude/rules/`, `DECISIONS.md`, `SECURITY.md`).
-Russian is for reviewer-only and working documents: `docs/handover-ru.md`,
-`docs/plan.md`, the audits and `docs/verification-*.md`. `docs/acceptance.md` is
-the spec and stays verbatim, so its terms are quoted untranslated even in
-English documents. README's opening note, in English, says which documents are
-Russian. Reason and the full map: the language entries in `DECISIONS.md`
-(2026-09-13, 2026-10-01).
+Language: everything in the repository is English — code, commit messages and
+every document, the spec included (`docs/acceptance.md` is a translation; the
+Russian original is under the tag `submission-2026-09-14`). Reason: the latest
+language entry in `DECISIONS.md` (2026-10-01).
 
 Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
 realtime SSE and the Vue frontend are implemented and `make check` is green.
-Every "Ожидаемое поведение" bullet is proven by a named test (README "State"
+Every "Expected behaviour" bullet is proven by a named test (README "State"
 table). See `docs/plan.md`.
 
 ## Active rule modules

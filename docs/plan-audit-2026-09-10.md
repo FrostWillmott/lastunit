@@ -1,142 +1,156 @@
-# Аудит плана реализации (2026-09-10)
+# Implementation plan audit (2026-09-10)
 
-Независимый аудит `docs/plan.md` перед передачей исполнителю. Проверялись:
-`docs/plan.md`, `docs/acceptance.md`, `AGENTS.md`, `CLAUDE.md`, `DECISIONS.md`,
-все модули `.claude/rules/`, а также `Makefile`, `pyproject.toml`, `ruff.toml`,
-`.github/workflows/ci.yml`, `docker-compose.yml`, `Dockerfile`,
-`frontend/vite.config.ts`. Проведён Claude Code (Claude Fable 5.1) как второй
-моделью; автор плана в аудите не участвовал.
+Independent audit of `docs/plan.md` before handing it to the implementer.
+Checked: `docs/plan.md`, `docs/acceptance.md`, `AGENTS.md`, `CLAUDE.md`,
+`DECISIONS.md`, every module in `.claude/rules/`, plus `Makefile`,
+`pyproject.toml`, `ruff.toml`, `.github/workflows/ci.yml`,
+`docker-compose.yml`, `Dockerfile`, `frontend/vite.config.ts`. Conducted by
+Claude Code (Claude Fable 5.1) as a second model; the plan's author took no part
+in the audit.
 
-## Находки по убыванию серьёзности
+## Findings by decreasing severity
 
-### 1. Изоляция интеграционных тестов несовместима с тестами на гонки
-- Где: коммит 3 — «транзакция с rollback на тест».
-- Что сломается: тесты 3 (две корутины на последней единице), 14
-  (`FOR UPDATE SKIP LOCKED`), 6 (вебхук от заглушки), 2/18 (SSE после commit)
-  требуют отдельных соединений и настоящих commit. Внутри одной общей транзакции
-  блокировки строк и видимость не работают; две корутины на одном `AsyncSession` —
-  сломанный тест. Четыре из девяти приёмочных тестов в описанном виде не написать.
-- Правка: TRUNCATE (или отдельная схема) на тест, реальные commit; `get_db` в
-  тестах отдаёт обычные сессии из пула.
+### 1. Integration-test isolation is incompatible with race tests
+- Where: commit 3 — "a transaction with rollback per test".
+- What breaks: tests 3 (two coroutines on the last unit), 14
+  (`FOR UPDATE SKIP LOCKED`), 6 (webhook from the stub), 2/18 (SSE after commit)
+  need separate connections and real commits. Inside one shared transaction,
+  row locks and visibility do not work; two coroutines on one `AsyncSession` is
+  a broken test. Four of the nine acceptance tests cannot be written as described.
+- Fix: TRUNCATE (or a separate schema) per test, real commits; `get_db` in
+  tests hands out ordinary sessions from the pool.
 
-### 2. Порядок шагов в `/pay` держится на дисциплине кода
-- Где: коммит 12 — «резервация в `paying`, вызов заглушки, статус по ответу»;
-  guard `WHERE status='pending'` описан только для вебхука.
-- Что сломается: (а) двойной клик по «оплатить» вызывает заглушку дважды —
-  `payments.order_id UNIQUE` защищает только если INSERT сделан и закоммичен до
-  HTTP-вызова; (б) вебхук, пришедший до commit обработчика, не находит
-  `provider_ref` и теряется; (в) таймаут заглушки, обработанный откатом,
-  возвращает резервацию в `held`, хотя заглушка могла одобрить платёж.
-- Правка: backend сам генерирует `provider_ref`; в одной транзакции INSERT
-  `payments` + `reservations held→paying` + commit, потом вызов заглушки; таймаут =
-  заказ остаётся `pending`. Добавить тест `test_double_pay_calls_paystub_once`
-  (заглушка получила ровно один POST): `test_double_pay_same_key_one_order`
-  закрывает «два заказа», но не «списать дважды».
+### 2. The order of steps in `/pay` rests on coding discipline
+- Where: commit 12 — "reservation into `paying`, call the stub, status from the
+  response"; the guard `WHERE status='pending'` is described only for the webhook.
+- What breaks: (a) a double click on "pay" calls the stub twice —
+  `payments.order_id UNIQUE` protects only if the INSERT is made and committed
+  before the HTTP call; (b) a webhook that arrives before the handler's commit
+  does not find `provider_ref` and is lost; (c) a stub timeout handled by a
+  rollback returns the reservation to `held`, even though the stub may have
+  approved the payment.
+- Fix: the backend generates `provider_ref` itself; in one transaction, INSERT
+  `payments` + `reservations held→paying` + commit, then call the stub; timeout =
+  the order stays `pending`. Add the test `test_double_pay_calls_paystub_once`
+  (the stub received exactly one POST): `test_double_pay_same_key_one_order`
+  covers "two orders" but not "charge twice".
 
-### 3. Пункты ТЗ без backend-коммита и без теста
-- Где: коммиты 22 и 23 — только фронтенд.
-- Что сломается: нет эндпоинта статистики магазина (остатки, продано, в корзинах,
-  выручка, список зависших платежей) и нет `GET /api/me/orders`. Исход «отклонить»
-  нигде не определён и не тестируется.
-- Правка: backend-коммит «shop stats + my orders» между 16 и 17; тест
-  `test_declined_payment_returns_reservation_to_cart` (см. ответ 1).
+### 3. Spec items with no backend commit and no test
+- Where: commits 22 and 23 — frontend only.
+- What breaks: there is no shop statistics endpoint (stock, sold, in carts,
+  revenue, list of stuck payments) and no `GET /api/me/orders`. The "decline"
+  outcome is not defined or tested anywhere.
+- Fix: a backend commit "shop stats + my orders" between 16 and 17; the test
+  `test_declined_payment_returns_reservation_to_cart` (see answer 1).
 
-### 4. `make up` по README не даст рабочее приложение
-- Где: коммит 25 — «прогон `make up` с чистого `.env`»; Dockerfile CMD — только uvicorn.
-- Что сломается: миграции и seed никто не применяет в compose; заглушка не знает
-  адрес backend для `callback_url` (нужна настройка вида `PUBLIC_BASE_URL`, в списке
-  коммита 1 её нет); в CI после коммита 3 нет `DATABASE_URL` (`.env` там не существует).
-- Правка: entrypoint или `command` с `alembic upgrade head` + seed; настройка адреса
-  для вебхука; `env:` в job backend в ci.yml в коммите 3.
+### 4. `make up` per the README will not produce a working app
+- Where: commit 25 — "run `make up` from a clean `.env`"; the Dockerfile CMD is
+  uvicorn only.
+- What breaks: nobody applies migrations and the seed in compose; the stub does
+  not know the backend address for `callback_url` (a setting like
+  `PUBLIC_BASE_URL` is needed and is not in commit 1's list); in CI after commit 3
+  there is no `DATABASE_URL` (`.env` does not exist there).
+- Fix: an entrypoint or `command` with `alembic upgrade head` + seed; a setting
+  for the webhook address; `env:` in the backend job in ci.yml in commit 3.
 
-### 5. Порядок коммитов
-- Коммит 13 (тест 5: оплата переживает истечение удержания) требует механизма
-  истечения из коммита 14. Поменять местами.
-- Коммит 17 дописывает broadcast в код коммитов 8, 9, 12, 14, 16. Ввести интерфейс
-  broadcaster с no-op реализацией в коммите 8.
+### 5. Commit order
+- Commit 13 (test 5: payment survives hold expiry) needs the expiry mechanism
+  from commit 14. Swap them.
+- Commit 17 retrofits broadcast into the code of commits 8, 9, 12, 14, 16.
+  Introduce a broadcaster interface with a no-op implementation in commit 8.
 
-### 6. `make check` не будет зелёным после каждого коммита
-- `vite.config.ts` держит порог 60 % lines/statements; коммиты 19–23 добавляют
-  компоненты, единственный тест — в 24. Аналогично `--cov-fail-under` из коммита 1
-  на двух крошечных тестах.
-- `make test` = `pytest tests/` целиком, значит с коммита 3 локальный `make check`
-  требует поднятой БД; `make test-integration` упомянут, но цели не разделены.
-- Правка: тесты в каждом фронтенд-коммите; порог покрытия задать на коммите 3
-  (первый реальный набор); README: «`make check` требует `docker compose up -d db`».
-  Область фронтенд-порога — см. ответ 6.
+### 6. `make check` will not be green after every commit
+- `vite.config.ts` holds a 60 % lines/statements threshold; commits 19–23 add
+  components, and the only test comes in 24. The same goes for
+  `--cov-fail-under` from commit 1 on two tiny tests.
+- `make test` = all of `pytest tests/`, so from commit 3 on a local `make check`
+  needs the DB up; `make test-integration` is mentioned, but the targets are not
+  split.
+- Fix: tests in every frontend commit; set the coverage threshold at commit 3
+  (the first real suite); README: "`make check` requires `docker compose up -d db`".
+  Scope of the frontend threshold — see answer 6.
 
-### 7. Тест 1 помечен неверно
-- Где: таблица тестов, строка 1 — «unit, frozen clock»; коммит 7.
-- Что сломается: «до старта купить нельзя» гарантируется `WHERE starts_at <= :now`
-  в UPDATE коммита 8. Unit-тест может проверить только Python-дубль проверки, не
-  гарантию. Вторая половина пункта («у всех одновременно») теста не имеет вообще.
-- Правка: оба теста — integration в коммите 8; в State — «partially proven».
+### 7. Test 1 is labelled wrongly
+- Where: test table, row 1 — "unit, frozen clock"; commit 7.
+- What breaks: "cannot buy before the start" is guaranteed by
+  `WHERE starts_at <= :now` in commit 8's UPDATE. A unit test can only check the
+  Python duplicate of the check, not the guarantee. The second half of the item
+  ("for everyone at the same time") has no test at all.
+- Fix: both tests are integration tests in commit 8; in State — "partially proven".
 
-### 8. Настройки и источник времени
-- Коммит 1 перечисляет восемь настроек и тут же говорит «только те, что уже
-  читаются» — противоречие. `SECRET_KEY` нигде в плане не имеет потребителя
-  (серверные случайные токены сессий не подписываются). `HOLD_MINUTES` —
-  фиксированное значение ТЗ, не ручка.
-- Утверждение «Ruff DTZ ловит `datetime.now()`» неверно дважды: DTZ нет в `select`
-  в `ruff.toml`, и DTZ ловит наивные datetime, `datetime.now(UTC)` проходит.
-  Механической проверки «одного источника времени» нет; `server_default=func.now()`
-  в моделях — привычка, которая её нарушит.
-- Правка: в коммите 1 только `APP_ENV`, `LOG_LEVEL`; `SECRET_KEY` убрать;
-  `HOLD_MINUTES` — константа; отдельный тест-grep на `datetime.now`/`func.now`/`now()`.
+### 8. Settings and the time source
+- Commit 1 lists eight settings and in the same breath says "only those already
+  read" — a contradiction. `SECRET_KEY` has no consumer anywhere in the plan
+  (server-side random session tokens are not signed). `HOLD_MINUTES` is a fixed
+  value from the spec, not a knob.
+- The claim "Ruff DTZ catches `datetime.now()`" is wrong twice: DTZ is not in
+  `select` in `ruff.toml`, and DTZ catches naive datetimes, so
+  `datetime.now(UTC)` passes. There is no mechanical check for "a single time
+  source"; `server_default=func.now()` in models is a habit that will break it.
+- Fix: in commit 1 only `APP_ENV`, `LOG_LEVEL`; remove `SECRET_KEY`;
+  `HOLD_MINUTES` is a constant; a separate grep test for
+  `datetime.now`/`func.now`/`now()`.
 
-### 9. Машины состояний не определены
-- План нигде не перечисляет статусы reservation/order/payment и переходы;
-  `sales.status` одновременно хранимая колонка и вычисление по времени. Коммиты 8,
-  12, 13, 14, 16 каждый придумают свой кусок.
-- Правка: enum'ы и таблица переходов в коммите 4; `sales.status` — только
-  терминальный флаг (`ended`), остальное выводится из `starts_at/ends_at` и `:now`.
+### 9. State machines are not defined
+- The plan nowhere lists the reservation/order/payment statuses and transitions;
+  `sales.status` is both a stored column and a computation from time. Commits 8,
+  12, 13, 14, 16 will each invent their own piece.
+- Fix: enums and a transition table in commit 4; `sales.status` is only a
+  terminal flag (`ended`), everything else is derived from `starts_at/ends_at`
+  and `:now`.
 
-### 10. Проверить до опоры
-- httpx `ASGITransport` в известных версиях буферизует тело ответа целиком — тест
-  2/18 (два SSE-клиента) через него зависнет. Либо uvicorn на свободном порту, либо
-  тест broadcaster + генератора SSE напрямую.
-- Frozen clock должен попадать в планировщик и SSE: нужна фабрика `create_app(clock=…)`
-  и `run_once(now)` у планировщика, иначе тест 4 будет ждать `sleep`.
-- Доставка вебхука in-process: заглушке нужен инжектируемый HTTP-клиент на
-  ASGI-приложение backend; план этого не описывает.
+### 10. Verify before relying on
+- httpx `ASGITransport` in known versions buffers the whole response body —
+  test 2/18 (two SSE clients) will hang through it. Either uvicorn on a free
+  port, or test the broadcaster + SSE generator directly.
+- The frozen clock must reach the scheduler and SSE: a `create_app(clock=…)`
+  factory and a `run_once(now)` on the scheduler are needed, otherwise test 4
+  will wait on `sleep`.
+- In-process webhook delivery: the stub needs an injectable HTTP client pointed
+  at the backend's ASGI app; the plan does not describe this.
 
-## Объём
-Не требуется ТЗ, но стоит времени (решения пользователя, не ошибки):
-регистрация/роли/argon2; HMAC на вебхуке; цикл сверки (он же второй «резолвер»,
-гоняющийся с вебхуком — снят ответом 4).
-Требуется ТЗ, но отложено/отсутствует: находки 3, 4, семантика таймаута заглушки
-(закрыта ответом 5).
+## Scope
+Not required by the spec, but worth the time (user decisions, not errors):
+registration/roles/argon2; HMAC on the webhook; a reconciliation loop (which is
+also a second "resolver" racing the webhook — dropped by answer 4).
+Required by the spec, but deferred/missing: findings 3, 4, the stub timeout
+semantics (closed by answer 5).
 
-## Неявные решения (исполнитель выбрал бы сам)
-1. Отклонённый платёж: резервация обратно в `held` с прежним `expires_at` или
-   освобождается. → ответ 1.
-2. Отклонение после окончания распродажи: товар не должен вернуться на витрину.
-3. Оплата после `expires_at`, но до тика планировщика, и после `ends_at`, но до
-   очистки: guard по времени в UPDATE или недетерминизм от интервала опроса. → ответ 3.
-4. Одна резервация на покупателя на распродажу (partial UNIQUE) или сколько угодно.
-   → ответ 2.
-5. Область Idempotency-Key (per user) и обработка IntegrityError при параллельном дубле.
-6. Кто генерирует `provider_ref` (см. находку 2).
-7. Таблица «номер карты → исход» задана только в разделе «Проверка».
-8. Интервал опроса планировщика.
-9. Кто применяет миграции и seed в compose и CI.
-10. `available` при «снять непроданное»: обнулить или только статус.
+## Implicit decisions (the implementer would pick on their own)
+1. Declined payment: the reservation goes back to `held` with the old
+   `expires_at`, or is released. → answer 1.
+2. Decline after the sale ends: the item must not return to the storefront.
+3. Payment after `expires_at` but before the scheduler tick, and after `ends_at`
+   but before cleanup: a time guard in the UPDATE, or nondeterminism from the
+   polling interval. → answer 3.
+4. One reservation per buyer per sale (partial UNIQUE) or any number.
+   → answer 2.
+5. Idempotency-Key scope (per user) and handling IntegrityError on a
+   concurrent duplicate.
+6. Who generates `provider_ref` (see finding 2).
+7. The "card number → outcome" table is given only in the "Verification" section.
+8. Scheduler polling interval.
+9. Who applies migrations and the seed in compose and CI.
+10. `available` on "withdraw unsold": zero it or change only the status.
 
-## Вопросы человеку и ответы (2026-09-10)
-1. **Отклонённый платёж.** Резервация возвращается в корзину: `paying → held`,
-   `expires_at` прежний, товар на витрину не возвращается. Повтор оплаты разрешён.
-2. **Лимит на покупателя.** Одна активная резервация на покупателя на распродажу
-   (partial UNIQUE по `(sale_id, user_id)` для нетерминальных статусов).
-3. **Оплата после истечения.** Срок проверяется прямо в переходе `held → paying`:
+## Questions to the human and answers (2026-09-10)
+1. **Declined payment.** The reservation returns to the cart: `paying → held`,
+   `expires_at` unchanged, the item does not return to the storefront. Retrying
+   payment is allowed.
+2. **Per-buyer limit.** One active reservation per buyer per sale
+   (partial UNIQUE on `(sale_id, user_id)` for non-terminal statuses).
+3. **Payment after expiry.** The deadline is checked right in the
+   `held → paying` transition:
    `UPDATE reservations SET status='paying' WHERE id=? AND status='held'
-   AND expires_at > :now AND :now < sale.ends_at`. Ноль строк → 409. От интервала
-   опроса планировщика поведение не зависит.
-4. **Сверка с заглушкой.** Не нужна. Достаточно вебхука и ручного `resolve` на
-   заглушке. Коммит 16 теряет «сверку `pending` платежей»; `GET /payments/{ref}`
-   у заглушки остаётся для отладки.
-5. **«Зависла».** И ответ `pending`, и HTTP-таймаут; оба оставляют заказ в
-   `pending` (строка `payments` уже закоммичена до вызова, см. находку 2). Демо
-   показывает первое — через номер карты.
-6. **Порог покрытия фронтенда.** Считается только по `src/stores` и `src/api`
-   (`coverage.include` в `vite.config.ts`); компоненты и экраны в порог не входят.
-7. **`SECRET_KEY`.** Убрать из списка настроек.
+   AND expires_at > :now AND :now < sale.ends_at`. Zero rows → 409. Behaviour
+   does not depend on the scheduler's polling interval.
+4. **Reconciliation with the stub.** Not needed. The webhook and a manual
+   `resolve` on the stub are enough. Commit 16 loses "reconciliation of `pending`
+   payments"; the stub's `GET /payments/{ref}` stays for debugging.
+5. **"Stuck".** Both a `pending` response and an HTTP timeout; both leave the
+   order in `pending` (the `payments` row is already committed before the call,
+   see finding 2). The demo shows the former — via a card number.
+6. **Frontend coverage threshold.** Counted only over `src/stores` and `src/api`
+   (`coverage.include` in `vite.config.ts`); components and screens are not part
+   of the threshold.
+7. **`SECRET_KEY`.** Remove it from the settings list.
