@@ -24,8 +24,9 @@ Russian is for reviewer-only and working documents: `docs/handover-ru.md`,
 hand in `agent-sessions/` — its `README.md` and the per-session notes, while the
 transcripts keep whatever language the session ran in. `docs/acceptance.md` is
 the spec and stays verbatim, so its terms are quoted untranslated even in
-English documents. README carries one Russian note to the reviewer above the
-fold. Reason and the full map: the language entry in `DECISIONS.md` (2026-09-13).
+English documents. README's opening note, in English, says which documents are
+Russian. Reason and the full map: the language entries in `DECISIONS.md`
+(2026-09-13, 2026-10-01).
 
 Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
