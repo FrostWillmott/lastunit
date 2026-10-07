@@ -10,6 +10,13 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-07 — npm audit accepts one reviewed advisory: braces GHSA-vfj7-8cjw-p6xm
+`braces` <= 3.0.3 has a high DoS advisory with no patched release, reached only through
+the linter (`@vue/eslint-config-typescript` -> `fast-glob`). npm's suggested fix,
+downgrading that config to 14.0.1, needs eslint 9 and drops `defineConfigWithVueTs`.
+`frontend/scripts/audit.mjs` keeps the full high/critical gate but skips allow-listed
+GHSA ids, each with a reason, and flags an entry as stale once npm stops reporting it.
+
 ## 2026-10-07 — The payment stub only calls back to allow-listed hosts
 CodeQL flagged `py/full-ssrf` (critical) in `paystub/main.py`: the stub POSTed its
 webhook to whatever `callback_url` the request named. Fixed rather than dismissed,

@@ -118,7 +118,7 @@ audit:
 	@uv audit --help >/dev/null 2>&1 || { echo "make audit needs uv >= 0.12 — run: uv self update"; exit 1; }
 	uv audit --locked --preview-features audit-command
 ifneq ($(HAS_FRONTEND),)
-	cd frontend && npm audit --audit-level=high
+	cd frontend && node scripts/audit.mjs
 endif
 
 docker-build:
