@@ -15,7 +15,7 @@ local home path and an employer name, so it was scrubbed rather than kept.
      September, removed from the tree on 2026-10-01, but still reachable via
      `git log`/`git checkout`).
   2. 28 GitHub PR head refs (`refs/pull/*/head`), which still reach the blobs
-     and can only be removed by deleting those PRs (or GitHub Support).
+     and only GitHub Support can remove (see the last section).
 
 ## Part A — Push the already-rewritten local `main`
 
@@ -86,7 +86,34 @@ git push --force-with-lease origin main
 
 ## Residue that no git command reaches
 
-The 28 PR head refs still hold the blobs. Delete those PRs (GitHub UI,
-`gh pr close` + delete, or GitHub Support for a hard purge). Until then the leak
-is reduced, not gone: a reader can still
-`git fetch origin refs/pull/22/head` and recover the files.
+PRs #1–#28 still hold the blobs through `refs/pull/<n>/head` (checked on
+2026-10-07: 28 of 30 PR refs reach `agent-sessions/`; #29 and #30 were opened
+after the rewrite and are clean). Until they are purged the leak is reduced, not
+gone: anyone can `git fetch origin refs/pull/22/head` and recover the files.
+
+An owner cannot remove these refs. GitHub has no way to delete a pull request,
+in the UI or the API, and closing or merging one leaves `refs/pull/<n>/head` in
+place; all 28 are already closed or merged. Only GitHub Support can delete the
+PRs and garbage-collect the unreachable objects. Recreating the repository would
+also work, but it loses every PR, the CodeQL and Actions history and the ruleset,
+so it was rejected.
+
+Status: on 2026-10-07 the owner chose to file the Support request themselves
+(support.github.com/contact, "Removing sensitive data"). Text used:
+
+> Repository: FrostWillmott/lastunit
+> I removed sensitive files (`agent-sessions/`) from all branch history with git
+> filter-repo and force-pushed `main` on 2026-10-07 (old tip `ca302d5`, new tip
+> `faf0378`). Pull requests #1–#28 still reference the old commits via
+> `refs/pull/*/head`, so the files remain fetchable. Please delete pull requests
+> #1–#28 and run garbage collection to purge the now-unreachable objects. PRs #29
+> and #30 were created after the rewrite and should be kept.
+
+After Support confirms, check that no PR ref reaches the directory any more:
+
+```bash
+git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*' --prune
+for ref in $(git for-each-ref --format='%(refname)' refs/remotes/origin/pr/); do
+  [ "$(git rev-list --count "$ref" -- agent-sessions/)" -gt 0 ] && echo "LEAK $ref"
+done   # no output = clean
+```
