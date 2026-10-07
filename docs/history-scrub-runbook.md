@@ -98,16 +98,22 @@ PRs and garbage-collect the unreachable objects. Recreating the repository would
 also work, but it loses every PR, the CodeQL and Actions history and the ruleset,
 so it was rejected.
 
-Status: on 2026-10-07 the owner chose to file the Support request themselves
-(support.github.com/contact, "Removing sensitive data"). Text used:
+Status: filed on 2026-10-07 through GitHub's "Request pull request removals"
+virtual agent (support.github.com/contact → Repositories; it created a ticket and
+says it will report back once the PRs are removed). Do not use the "Deletions"
+category on that form: it is for deleting or purging a whole repository.
+Answers given to the agent: multiple PRs; `FrostWillmott/lastunit`; PRs 1–28;
+sensitive data, already removed from history; rotation does not apply, because
+the data is a home path and an employer name, not a credential. The reason
+supplied:
 
-> Repository: FrostWillmott/lastunit
-> I removed sensitive files (`agent-sessions/`) from all branch history with git
-> filter-repo and force-pushed `main` on 2026-10-07 (old tip `ca302d5`, new tip
-> `faf0378`). Pull requests #1–#28 still reference the old commits via
-> `refs/pull/*/head`, so the files remain fetchable. Please delete pull requests
-> #1–#28 and run garbage collection to purge the now-unreachable objects. PRs #29
-> and later were created after the rewrite and should be kept.
+> The leaked data is not a credential, so it cannot be rotated: the
+> agent-sessions/ directory contained session exports with a local home path and
+> an employer name. I removed it from all branch history with git filter-repo and
+> force-pushed main on 2026-10-07 (old tip ca302d5, new tip faf0378), but PRs
+> #1-#28 still reference the old commits via refs/pull/*/head, so the files remain
+> fetchable. Please delete PRs #1-#28 and garbage-collect the unreachable objects.
+> PRs #29 and later were created after the rewrite and should be kept.
 
 After Support confirms, check that no PR ref reaches the directory any more:
 
