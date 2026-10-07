@@ -92,7 +92,8 @@ generates the secrets, and `docker compose` refuses to start without them.
 shop screen, plus a demo flash sale (5 units, starts a minute after the seed) so
 the storefront has something live to show. Payment is a stub (`paystub/`, port
 8001): card `…0000` approves, `…0002` declines, `…9995` hangs until you resolve
-it on `localhost:8001/docs`.
+it on `localhost:8001/docs`. The stub sends its webhook only to hosts in
+`PAYSTUB_ALLOWED_CALLBACK_HOSTS`, so it cannot be used as an open SSRF relay.
 
 ## Configuration
 
@@ -106,6 +107,7 @@ it on `localhost:8001/docs`.
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | Database role, password (generated), name.                                        |
 | `SESSION_TTL_DAYS`                                    | Login-cookie lifetime, in days.                                                   |
 | `SEED_SHOP_EMAIL` / `SEED_SHOP_PASSWORD`              | Demo shop account (`make seed`), dev-only.                                        |
+| `PAYSTUB_ALLOWED_CALLBACK_HOSTS`                      | Hosts the payment stub may send its webhook to; anything else gets 422.           |
 | `VITE_API_URL`                                        | Backend origin the Vite dev proxy forwards `/api` to.                             |
 
 ## Testing

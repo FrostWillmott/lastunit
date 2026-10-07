@@ -10,7 +10,11 @@ from paystub.main import create_app, deliver_with_retries, outcome_for_card
 
 def _stub_client(handler: Callable[[httpx.Request], httpx.Response]) -> TestClient:
     http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-    return TestClient(create_app(http_client=http_client))
+    return TestClient(
+        create_app(
+            http_client=http_client, allowed_callback_hosts=frozenset({"backend"})
+        )
+    )
 
 
 def _ok(_: httpx.Request) -> httpx.Response:
@@ -46,6 +50,28 @@ def test_create_approved_payment_delivers_webhook() -> None:
 
     assert len(calls) == 1
     assert calls[0].headers["X-Webhook-Signature"]
+
+
+def test_create_payment_foreign_callback_host_rejected_without_webhook() -> None:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200)
+
+    with _stub_client(handler) as client:
+        response = client.post(
+            "/payments",
+            json={
+                "reference": "r-ssrf",
+                "amount_minor": 1000,
+                "card_number": "4111111111110000",
+                "callback_url": "http://169.254.169.254/latest/meta-data/",
+            },
+        )
+        assert response.status_code == 422
+
+    assert calls == []
 
 
 def test_create_pending_payment_sends_no_webhook() -> None:

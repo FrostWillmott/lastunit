@@ -10,6 +10,12 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-07 — The payment stub only calls back to allow-listed hosts
+CodeQL flagged `py/full-ssrf` (critical) in `paystub/main.py`: the stub POSTed its
+webhook to whatever `callback_url` the request named. Fixed rather than dismissed,
+even though the stub is test-only: `PAYSTUB_ALLOWED_CALLBACK_HOSTS` (default
+`localhost`, compose sets `backend`) and any other host gets 422 before a payment is stored.
+
 ## 2026-10-07 — Review tag and session exports removed; plan and code audit move to `docs/history/`
 Supersedes the 2026-10-01 "Session exports removed from `main`" entry. The tag
 `submission-2026-09-14` pointed at the reviewed state but still carried

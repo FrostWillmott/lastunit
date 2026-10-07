@@ -43,6 +43,8 @@ services:
     environment:
       # Only the shared webhook secret — not the backend's whole .env.
       PAYSTUB_WEBHOOK_SECRET: ${PAYSTUB_WEBHOOK_SECRET:?PAYSTUB_WEBHOOK_SECRET is not set — run `make env` to create .env}
+      # The webhook goes to the backend by service name (its PUBLIC_BASE_URL host).
+      PAYSTUB_ALLOWED_CALLBACK_HOSTS: backend
     ports:
       - "8001:8001"
 

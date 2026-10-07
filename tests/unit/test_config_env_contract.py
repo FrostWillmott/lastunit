@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from app.config import Settings
+from paystub.main import Settings as PaystubSettings
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -28,7 +29,11 @@ def _documented_keys() -> set[str]:
 
 
 def test_env_example_matches_settings() -> None:
-    declared = {name.upper() for name in Settings.model_fields}
+    declared = {
+        name.upper()
+        for settings in (Settings, PaystubSettings)
+        for name in settings.model_fields
+    }
     documented = _documented_keys()
 
     extra = documented - NON_SETTINGS_KEYS - declared

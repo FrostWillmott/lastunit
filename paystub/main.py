@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import FastAPI, HTTPException
@@ -21,6 +22,19 @@ class Settings(BaseSettings):
 
     # The empty string is a sentinel rejected below; `make env` generates the value.
     paystub_webhook_secret: str = ""
+    # Comma-separated hosts the stub may POST its webhook to. Without this the stub
+    # is an open SSRF relay: any caller could make it POST to any URL. The default
+    # is the host of the backend's `public_base_url` default (app/config.py);
+    # compose overrides it to the backend's service name.
+    paystub_allowed_callback_hosts: str = "localhost"
+
+    @property
+    def allowed_callback_hosts(self) -> frozenset[str]:
+        return frozenset(
+            host.strip()
+            for host in self.paystub_allowed_callback_hosts.split(",")
+            if host.strip()
+        )
 
     @model_validator(mode="after")
     def _require_webhook_secret(self) -> Settings:
@@ -71,6 +85,11 @@ def outcome_for_card(card_number: str) -> str:
     return "declined"
 
 
+def callback_allowed(callback_url: str, allowed_hosts: frozenset[str]) -> bool:
+    parts = urlsplit(callback_url)
+    return parts.scheme in {"http", "https"} and parts.hostname in allowed_hosts
+
+
 def _sign(payload: dict[str, str], secret: str) -> tuple[bytes, str]:
     body = json.dumps(payload).encode()
     signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
@@ -115,15 +134,20 @@ async def deliver_with_retries(
 def create_app(
     http_client: httpx.AsyncClient | None = None,
     webhook_secret: str | None = None,
+    allowed_callback_hosts: frozenset[str] | None = None,
 ) -> FastAPI:
     client = http_client or httpx.AsyncClient()
-    secret = webhook_secret or Settings().paystub_webhook_secret
+    settings = Settings()
+    secret = webhook_secret or settings.paystub_webhook_secret
+    allowed_hosts = allowed_callback_hosts or settings.allowed_callback_hosts
     store: dict[str, _Payment] = {}
 
     app = FastAPI(title="paystub")
 
     @app.post("/payments", response_model=PaymentStatus)
     async def create_payment(body: PaymentCreateRequest) -> PaymentStatus:
+        if not callback_allowed(body.callback_url, allowed_hosts):
+            raise HTTPException(status_code=422, detail="callback_url host not allowed")
         outcome = outcome_for_card(body.card_number)
         store[body.reference] = _Payment(
             body.reference,
