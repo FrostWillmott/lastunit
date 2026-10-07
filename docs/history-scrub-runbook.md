@@ -87,8 +87,8 @@ git push --force-with-lease origin main
 ## Residue that no git command reaches
 
 PRs #1–#28 still hold the blobs through `refs/pull/<n>/head` (checked on
-2026-10-07: 28 of 30 PR refs reach `agent-sessions/`; #29 and #30 were opened
-after the rewrite and are clean). Until they are purged the leak is reduced, not
+2026-10-07: #1–#28 reach `agent-sessions/`; #29 onwards were opened after the
+rewrite and are clean). Until they are purged the leak is reduced, not
 gone: anyone can `git fetch origin refs/pull/22/head` and recover the files.
 
 An owner cannot remove these refs. GitHub has no way to delete a pull request,
@@ -107,7 +107,7 @@ Status: on 2026-10-07 the owner chose to file the Support request themselves
 > `faf0378`). Pull requests #1–#28 still reference the old commits via
 > `refs/pull/*/head`, so the files remain fetchable. Please delete pull requests
 > #1–#28 and run garbage collection to purge the now-unreachable objects. PRs #29
-> and #30 were created after the rewrite and should be kept.
+> and later were created after the rewrite and should be kept.
 
 After Support confirms, check that no PR ref reaches the directory any more:
 
