@@ -19,8 +19,13 @@ local home path and an employer name, so it was scrubbed rather than kept.
 
 ## Part A — Push the already-rewritten local `main`
 
-The local repository is already scrubbed: `main` = `dbc33c2`, `origin/main`
-still at `ca302d5`.
+Done on 2026-10-07: `origin/main` went from `ca302d5` to `faf0378` (the scrubbed
+history plus two commits on top). The rules were switched off through the API
+instead of the UI (`gh api -X PUT repos/FrostWillmott/lastunit/rulesets/23276082
+-f enforcement=disabled`, then `=active`), and the ruleset was compared against a
+saved copy afterwards. The first run after the push failed only in `audit`, on
+advisories published that day; PR #29 fixed it and `main` was green at `2829bc2`.
+The `main-clean` branch was deleted once it was part of `main`.
 
 1. **Relax the branch rules** (GitHub → repo `Settings` → the ruleset protecting
    `main`; the push error links to `…/rules?ref=refs/heads/main`). Uncheck
