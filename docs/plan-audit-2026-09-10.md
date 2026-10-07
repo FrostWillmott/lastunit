@@ -1,7 +1,7 @@
 # Implementation plan audit (2026-09-10)
 
-Independent audit of `docs/plan.md` before handing it to the implementer.
-Checked: `docs/plan.md`, `docs/acceptance.md`, `AGENTS.md`, `CLAUDE.md`,
+Independent audit of `docs/history/plan.md` before handing it to the implementer.
+Checked: `docs/history/plan.md`, `docs/acceptance.md`, `AGENTS.md`, `CLAUDE.md`,
 `DECISIONS.md`, every module in `.claude/rules/`, plus `Makefile`,
 `pyproject.toml`, `ruff.toml`, `.github/workflows/ci.yml`,
 `docker-compose.yml`, `Dockerfile`, `frontend/vite.config.ts`. Conducted by

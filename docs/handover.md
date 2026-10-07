@@ -12,12 +12,12 @@ content lives in the files this page links to; here is only the route to them.
 ## 2. What it was built with: which model, which tool, and why
 
 [`README.md` → "Tools and models"](../README.md#tools-and-models). The tool is
-Claude Code (CLI); the same section, in the "Why Claude Code" paragraph, says
-why it was chosen and why the harness around it is not ported to another tool.
-The work was deliberately split across three models in separate sessions, and
-the same section says why: a mistake has to survive a different model in a
-different session before it reaches the repository. Both audits found defects
-that the implementer's own review had passed.
+Claude Code (CLI); why it was chosen and why the harness around it is not
+ported to another tool is in the decision log (2026-09-13). The work was
+deliberately split across three models in separate sessions: a mistake has to
+survive a different model in a different session before it reaches the
+repository. Both audits found defects that the implementer's own review had
+passed.
 
 In the decision log: [`DECISIONS.md`](../DECISIONS.md) → "Claude Code as the
 tool, and why the harness is not ported" (2026-09-13). One model did not run
@@ -26,16 +26,12 @@ through Anthropic: `ANTHROPIC_BASE_URL` points the same harness at
 
 ## 3. Prompts, a decision log or an export of the agent session
 
-- [`agent-sessions/`](https://github.com/FrostWillmott/lastunit/tree/submission-2026-09-14/agent-sessions)
-  — session exports: a full `.jsonl` and a short `.md` for each. They are kept
-  under the tag `submission-2026-09-14`; removed from `main` on 2026-10-01.
-- [`agent-sessions/README.md`](https://github.com/FrostWillmott/lastunit/blob/submission-2026-09-14/agent-sessions/README.md)
-  — what did **not** go in and why (forks and continuations of the same work)
-  and what was cut before submission (dead local secrets, the test accounts'
-  password). Read it before comparing the number of exports with the number of
-  sessions.
 - [`DECISIONS.md`](../DECISIONS.md) — the decision log: why things are built
   this way and not another. Dated entries, newest first.
+- Session exports were published for the review under the tag
+  `submission-2026-09-14`, removed from `main` on 2026-10-01, and scrubbed from
+  the repository entirely on 2026-10-07 (they carried local paths and an
+  employer name). See the decision log for why.
 
 ## 4. The course of the work over time
 
@@ -44,9 +40,7 @@ through Anthropic: `ANTHROPIC_BASE_URL` points the same harness at
   2026-09-10 09:59 +0300.
 - [`DECISIONS.md`](../DECISIONS.md) — each decision is dated and sits in the
   same change as the code, not added after the fact.
-- [`agent-sessions/`](https://github.com/FrostWillmott/lastunit/tree/submission-2026-09-14/agent-sessions)
-  — dates in the file names.
-- [`docs/plan.md` → "Stages and commits"](plan.md#stages-and-commits) — the
+- [`docs/history/plan.md` → "Stages and commits"](history/plan.md#stages-and-commits) — the
   sequence of commits planned in advance, to compare the plan with the actual
   history.
 
@@ -62,7 +56,7 @@ through Anthropic: `ANTHROPIC_BASE_URL` points the same harness at
   [`docs/verification-2026-09-12.md`](verification-2026-09-12.md) — a run of
   the assembled app in a browser, separate from the tests, and two independent
   reviews — [`docs/plan-audit-2026-09-10.md`](plan-audit-2026-09-10.md) and
-  [`docs/code-audit-2026-09-12.md`](code-audit-2026-09-12.md).
+  [`docs/history/code-audit-2026-09-12.md`](history/code-audit-2026-09-12.md).
 
 ## 6. What would come in the next round
 
@@ -76,7 +70,7 @@ paragraph. The scaffold is the Claude Code skill
 [`.claude/skills/workflow-scaffolding/SKILL.md`](../.claude/skills/workflow-scaffolding/SKILL.md);
 it lives in the repository, so what it provides is visible. What the
 repository held before the first application commit is listed in
-[`docs/plan.md` → "Context"](plan.md#context): tooling, CI, agent rules, an
+[`docs/history/plan.md` → "Context"](history/plan.md#context): tooling, CI, agent rules, an
 empty `FastAPI()` and a Vue stub with a single `/api/health` request. The
 frontend skeleton itself is mine, but generated with `create-vite`
 (`npm create vite`); no one else's templates or ready-made solutions underlie

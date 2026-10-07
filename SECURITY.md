@@ -2,9 +2,8 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue. Email the maintainer listed in `pyproject.toml`
-(or the repository owner) with a description and reproduction steps. You will
-get an acknowledgement within 7 days.
+Do not open a public issue. Email the repository owner with a description and
+reproduction steps. You will get an acknowledgement within 7 days.
 
 ## Scope
 

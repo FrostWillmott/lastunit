@@ -57,7 +57,7 @@ def sql_in_list(values: tuple[str, ...]) -> str:
 
 # State machine — the single source of truth for which transitions are valid.
 # Services enforce these as guarded ``UPDATE ... WHERE status = <from>`` (zero
-# rows → 409 or no-op), never by a Python check; see docs/plan.md "State
+# rows → 409 or no-op), never by a Python check; see docs/history/plan.md "State
 # machines".
 RESERVATION_TRANSITIONS: dict[ReservationStatus, frozenset[ReservationStatus]] = {
     ReservationStatus.HELD: frozenset(

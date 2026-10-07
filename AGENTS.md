@@ -8,7 +8,7 @@ this file and adds Claude Code specifics; other agents read this file directly.
   PREFER tags used in each module.
 - Skills: `.claude/skills/` (also reachable as `.agents/skills`, a symlink).
 - Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Implementation plan
-  with commit sequence: `docs/plan.md`.
+  with commit sequence: `docs/history/plan.md`.
 
 ## Project
 Flash-sale service: a shop lists a batch of goods at a special price for a
@@ -19,14 +19,14 @@ PostgreSQL 17 via docker-compose. Payment and email are stubs by design.
 
 Language: everything in the repository is English — code, commit messages and
 every document, the spec included (`docs/acceptance.md` is a translation; the
-Russian original is under the tag `submission-2026-09-14`). Reason: the latest
-language entry in `DECISIONS.md` (2026-10-01).
+Russian original lives only in git history, before the 2026-10-01 translation).
+Reason: the latest language entry in `DECISIONS.md` (2026-10-01).
 
 Status: all nine plan stages (0-8) are done. Backend (FastAPI, `app/` package with
 a `create_app(settings, clock, broadcaster)` factory), paystub, scheduler, outbox,
 realtime SSE and the Vue frontend are implemented and `make check` is green.
 Every "Expected behaviour" bullet is proven by a named test (README "State"
-table). See `docs/plan.md`.
+table). See `docs/history/plan.md`.
 
 ## Active rule modules
 python-core, backend-fastapi, testing, config-hygiene, transactional-web,
@@ -55,7 +55,7 @@ make audit     # uv audit + npm audit
 make ci        # check + frontend-build + audit — exactly what GitHub Actions runs
 
 # single test
-uv run pytest tests/unit/services/test_order.py::test_name -v
+uv run pytest tests/integration/test_orders.py::test_name -v
 cd frontend && npx vitest run src/api/client.test.ts
 ```
 

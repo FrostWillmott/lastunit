@@ -13,7 +13,7 @@
 Flash-sale service: a shop lists a batch of goods at a special price for a
 short window, and there are more buyers than stock. A buyer reserves one unit
 (10-minute hold) and pays through a payment stub; the shop watches stock, sold
-and revenue update live. Spec: `docs/acceptance.md`. Plan: `docs/plan.md`.
+and revenue update live. Spec: `docs/acceptance.md`. Plan: `docs/history/plan.md`.
 A route through the repository along the spec's deliverables:
 [`docs/handover.md`](docs/handover.md).
 
@@ -25,47 +25,37 @@ with `create-vite`.
 
 Built with Claude Code: the repository's own conventions live in `AGENTS.md`,
 `.claude/rules/` and `.claude/skills/`, and the agent reads them every session.
-The work was split across models on purpose, in separate sessions:
+The work was split across models on purpose, in separate sessions — Claude Fable
+5.1 (the plan and the independent reviews), DeepSeek V4 Pro (the implementation,
+stages 0-8) and Claude Opus 5 (CI repair and the browser-driven runtime check) —
+so a mistake has to survive a different model in a different session before it
+reaches the repository.
 
-- **Claude Fable 5.1** — the judgement-heavy steps, and no implementation: the
-  scaffold and the plan (`docs/plan.md`), then every independent review —
-  `docs/plan-audit-2026-09-10.md` and `docs/code-audit-2026-09-12.md`, which
-  also carries the security review.
-- **DeepSeek V4 Pro** — the implementation: stages 0-8 and the docs, plus the
-  fixes each audit asked for. It reviewed its own work as it went by running
-  `/code-review`, which executes as a separate agent in a session of its own —
-  eleven runs across the three stage-building sessions.
-- **Claude Opus 5** — the two jobs that meant observing the running system from
-  outside: repairing a CI pipeline that had been failing unnoticed, and the
-  end-to-end runtime check (`docs/verification-2026-09-12.md`), which reads
-  screenshots and so can check what the app actually renders — something V4 Pro
-  cannot do — plus the fixes that came out of it.
+## What I decided and wrote myself
 
-The split is the point: a mistake has to survive a different model in a
-different session before it reaches the repository, and both audits found
-defects that the implementer's own review had passed. The per-session
-tool/model record was kept in `agent-sessions/` up to the reviewed state (tag
-`submission-2026-09-14`) and removed afterwards.
+The scaffolding gave the structure; the concurrency behaviour below is mine.
 
-Why Claude Code. Anthropic's models have historically been the easiest for me to
-work with — frontier models that hold up in independent reviews, not only by
-feel — and Claude Code is built around them, so it was the obvious tool to reach
-for. What kept it is what surfaced afterwards and keeps shipping: a review or an
-audit runs as a subagent started by one command inside the current session, with
-its instructions and environment already prepared (`/code-review` ran eleven
-times here; the security review is folded into the code audit), and an advisor —
-a stronger reviewer model that receives the whole transcript — is consulted
-before an approach sets and before work is called done. Around that has grown a
-harness: `.claude/rules/`, this project template, `.claude/skills/`, the subagent
-definitions and the hooks. Porting it to another tool costs more than the port
-would return. The model split above needed no second tool either — `ANTHROPIC_BASE_URL`
-points the same harness at another endpoint, which is how DeepSeek V4 Pro
-(`api.deepseek.com/anthropic`) did the implementation.
+- **Atomic stock take, no row lock.** Reserving a unit is one conditional
+  `UPDATE sales SET available = available - 1 WHERE available > 0 AND
+  starts_at <= now AND now < ends_at RETURNING ...` — not `SELECT ... FOR UPDATE`.
+  Zero rows returned is what tells sold-out from not-started from ended.
+- **One active reservation per buyer per sale** as a partial
+  `UNIQUE (sale_id, user_id) WHERE status IN ('held','paying')`, enforced by the
+  database so a concurrent double-click cannot hold two units.
+- **`FOR UPDATE SKIP LOCKED`** on the expiry sweep, so several workers can
+  expire lapsed holds without two of them firing the same one.
+- **Guarded state transitions.** Every status change is an
+  `UPDATE ... WHERE status = <from> RETURNING ...`; the `held → paying` move
+  re-checks `expires_at > now` and `now < ends_at`, so a stale client cannot pay
+  a lapsed hold.
+- **One time source.** A `Clock` reads `SELECT now()` from Postgres once per
+  transaction and passes `now` into every service; no `datetime.now()` in
+  business logic.
+- **Idempotent checkout.** Orders are keyed by an `Idempotency-Key` header with
+  `UNIQUE (user_id, idempotency_key)`, so a retry returns the same order instead
+  of creating a second one.
 
-One layer of that setup went unused. `.claude/agents/` defines three mechanical
-subagents on `model: haiku`, but no session invoked one — every lookup, check
-run and doc edit happened in the main session, on the expensive model. What
-they are for is under "Next steps".
+Details, with the reasoning behind each: `DECISIONS.md`.
 
 ## Stack
 
@@ -196,7 +186,7 @@ Accepted edge cases:
 
 ## Next steps
 
-The plan (`docs/plan.md`) is complete. Left for a future iteration:
+The plan (`docs/history/plan.md`) is complete. Left for a future iteration:
 
 - Postgres `LISTEN/NOTIFY` and a separate worker, so several backend processes
   fan out the same live events (the demo runs one uvicorn process with an

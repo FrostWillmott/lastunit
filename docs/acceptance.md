@@ -4,9 +4,9 @@ The text of the assignment. The "Expected behaviour" section is numbered: the
 "State" table in `README.md` refers to these numbers (bullet → test → status).
 
 Source: the test assignment as received, translated from Russian. Headings and
-numbering were added; nothing else was. The Russian original is this file under
-the tag `submission-2026-09-14`. In the original, "Expected behaviour" has nine
-bullets.
+numbering were added; nothing else was. The Russian original lives only in git
+history, before the 2026-10-01 translation. In the original, "Expected
+behaviour" has nine bullets.
 
 ## Requirements
 

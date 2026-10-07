@@ -10,6 +10,18 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-07 — Review tag and session exports removed; plan and code audit move to `docs/history/`
+Supersedes the 2026-10-01 "Session exports removed from `main`" entry. The tag
+`submission-2026-09-14` pointed at the reviewed state but still carried
+`agent-sessions/` with a local home path and an employer name, so the tag is
+deleted and the exports are scrubbed from git history
+(`git filter-repo --path agent-sessions --invert-paths`). The completed working
+documents `docs/plan.md` and `docs/code-audit-2026-09-12.md` move under
+`docs/history/`, leaving `docs/` to hold only the spec, the handover route and
+the verification report. README's "Tools and models" is compressed to the model
+split, and a new "What I decided and wrote myself" section states the
+implementation choices that are the author's own.
+
 ## 2026-10-01 — English only, the spec included
 Supersedes the 2026-09-13 language split and the README-note entry below it.
 With the review over, the repository is read as a public project, and a second

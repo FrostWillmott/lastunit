@@ -2,7 +2,7 @@
 
 Independent audit of the range `efdaea8..HEAD` (56 commits, `934fcfe`) by a
 second model: Claude Code (CLI), Claude Fable 5.1. The implementation was done by
-deepseek-v4-pro following `docs/plan.md`. Nothing in the repository was changed;
+deepseek-v4-pro following `docs/history/plan.md`. Nothing in the repository was changed;
 the only file created is this report. The experiments (scenarios E1–E8 below)
 were run by scripts outside the repository against the test DB `app_test` and
 against a clone brought up per the README.
@@ -268,7 +268,7 @@ coverage; **medium** — a reproducible defect outside the acceptance items;
    (`DECISIONS.md:119-122`): after `ends_at` the code moves the reservation to
    `cleared` and **cancels the order** with a notification
    (`app/services/payments.py:185-203`, commit `2dae4ad`). The plan
-   (`docs/plan.md:217-218`) promised "the order does not change". There is no
+   (`docs/history/plan.md:217-218`) promised "the order does not change". There is no
    entry that would supersede this: `2dae4ad` did not touch DECISIONS.
 3. **2026-09-11 "Sale times are absolute, in the shop's IANA zone"**
    (`DECISIONS.md:80-85`): "renders the times back in that zone" — the API
