@@ -6,9 +6,10 @@ local home path and an employer name, so it was scrubbed rather than kept.
 
 ## What the leak actually was
 
-- The tag `submission-2026-09-14` was **local-only** — it was never pushed to
-  `origin` (`git ls-remote --tags origin` was empty). Deleting it changed
-  nothing public.
+- The tag `submission-2026-09-14` and its GitHub release **were public**: both
+  existed on GitHub and were deleted from the web UI on 2026-10-07, which is
+  why `git ls-remote --tags origin` was already empty when the scrub ran.
+  Anyone who fetched or downloaded the release before that may still hold a copy.
 - The real public exposure was two things:
   1. `agent-sessions/` blobs in `origin/main`'s git history (committed in
      September, removed from the tree on 2026-10-01, but still reachable via
@@ -46,8 +47,8 @@ still at `ca302d5`.
 git clone git@github.com:FrostWillmott/lastunit.git lastunit-scrub
 cd lastunit-scrub
 
-# 1. Drop the (local-only) tag
-git tag -d submission-2026-09-14
+# 1. Drop the tag (already deleted on GitHub; a fresh clone may not have it)
+git tag -d submission-2026-09-14 || true
 
 # 2. Strip agent-sessions from ALL history
 git filter-repo --path agent-sessions --invert-paths --force
