@@ -1,5 +1,8 @@
 # Code audit (2026-09-12)
 
+> Commit SHAs in this report are the pre-scrub values from the day of the audit;
+> the 2026-10-07 history rewrite (see DECISIONS.md) re-assigned them.
+
 Independent audit of the range `efdaea8..HEAD` (56 commits, `934fcfe`) by a
 second model: Claude Code (CLI), Claude Fable 5.1. The implementation was done by
 deepseek-v4-pro following `docs/history/plan.md`. Nothing in the repository was changed;

@@ -20,7 +20,9 @@ documents `docs/plan.md` and `docs/code-audit-2026-09-12.md` move under
 `docs/history/`, leaving `docs/` to hold only the spec, the handover route and
 the verification report. README's "Tools and models" is compressed to the model
 split, and a new "What I decided and wrote myself" section states the
-implementation choices that are the author's own.
+implementation choices that are the author's own. The rewrite re-assigned every
+commit SHA, so hashes cited in past entries of this log and in the dated audits
+(`docs/history/code-audit-2026-09-12.md`) are the pre-scrub values.
 
 ## 2026-10-01 — English only, the spec included
 Supersedes the 2026-09-13 language split and the README-note entry below it.

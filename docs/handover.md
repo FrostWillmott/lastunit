@@ -36,7 +36,7 @@ through Anthropic: `ANTHROPIC_BASE_URL` points the same harness at
 ## 4. The course of the work over time
 
 - `git log --format='%ad %s' --date=iso` — the timestamp of every commit. The
-  work took five days, 10–14 September 2026; the first commit is `efdaea8`,
+  work took five days, 10–14 September 2026; the first commit is `4adc1b4`,
   2026-09-10 09:59 +0300.
 - [`DECISIONS.md`](../DECISIONS.md) — each decision is dated and sits in the
   same change as the code, not added after the fact.
