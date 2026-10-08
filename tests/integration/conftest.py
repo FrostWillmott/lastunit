@@ -52,13 +52,13 @@ async def _truncate_tables() -> AsyncIterator[None]:
     # (alembic_version excepted). Real commits — race tests need separate
     # connections, so a rollback-per-test session would not work.
     async with SessionFactory() as session:
-        result = await session.execute(
+        result = await session.scalars(
             text(
                 "SELECT tablename FROM pg_tables "
                 "WHERE schemaname = 'public' AND tablename <> 'alembic_version'"
             )
         )
-        tables = [str(row) for row in result.scalars()]
+        tables = [str(row) for row in result]
         if tables:
             await session.execute(
                 text(f"TRUNCATE TABLE {', '.join(tables)} RESTART IDENTITY CASCADE")

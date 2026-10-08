@@ -208,4 +208,4 @@ async def list_cart(
         )
         .order_by(Reservation.expires_at)
     )
-    return list(result.tuples().all())
+    return list(result.all())
