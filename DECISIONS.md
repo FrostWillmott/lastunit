@@ -10,6 +10,14 @@ that supersedes it.
 <One or two lines: the decision and why. Link related files/PRs if useful.>
 -->
 
+## 2026-10-08 — `.claude/rules/` is a copy of developer-os, not a fork
+The local modules had drifted from developer-os `rules-library/`, and four of them
+existed only here. They went upstream (developer-os PR #1), and the nine files here
+are now byte-identical to `d42d2c5`. Copies rather than a link, because Claude Code
+auto-loads only files that are actually in `.claude/rules/`. A rule changes upstream
+first and is copied back. `ci-pipeline.md` now describes its 33-run incident as
+happening in "a project built on this library": this repository.
+
 ## 2026-10-07 — npm audit accepts one reviewed advisory: braces GHSA-vfj7-8cjw-p6xm
 `braces` <= 3.0.3 has a high DoS advisory with no patched release, reached only through
 the linter (`@vue/eslint-config-typescript` -> `fast-glob`). npm's suggested fix,

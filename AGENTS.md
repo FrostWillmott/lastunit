@@ -6,6 +6,9 @@ this file and adds Claude Code specifics; other agents read this file directly.
 - Conventions: `.claude/rules/*.md`. Claude Code loads them automatically; every
   other agent reads them explicitly. `_LEVELS.md` defines the MUST / MUST-UNLESS /
   PREFER tags used in each module.
+  They are exact copies of [developer-os](https://github.com/FrostWillmott/developer-os)
+  `rules-library/` at `d42d2c5`: change a rule there and copy it back, never
+  edit a copy here.
 - Skills: `.claude/skills/` (also reachable as `.agents/skills`, a symlink).
 - Decision log: `DECISIONS.md`. Spec: `docs/acceptance.md`. Implementation plan
   with commit sequence: `docs/history/plan.md`.

@@ -8,6 +8,8 @@ Apply when the project is a FastAPI service. Assumes `python-core.md` is also pr
 - `services/` — business logic, validation, orchestration. No knowledge of HTTP.
   Services raise domain exceptions; routers catch them and map to HTTP responses.
 - DB access layer (session factory via a `get_db()` dependency).
+- If the project wants the full domain/use-case/adapter split, that's the
+  `clean-architecture.md` module instead — don't impose it here.
 
 ## Pydantic
 - Separate request, response, and internal DTOs — don't reuse one model for all.
