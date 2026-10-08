@@ -10,7 +10,7 @@ dependencies = [
     "httpx>=0.28.1",
     "pwdlib[argon2]>=0.3.1",
     "pydantic-settings",
-    "sqlalchemy[asyncio]>=2.0.54",
+    "sqlalchemy[asyncio]>=2.1.1",
     "uvicorn[standard]>=0.54.0",
 ]
 
