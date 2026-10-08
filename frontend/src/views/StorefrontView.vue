@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useDocumentVisibility, useTimestamp } from '@vueuse/core'
+import { useDocumentVisibility, useIntervalFn, useTimestamp } from '@vueuse/core'
 import { ApiError } from '../api/client'
 import type { Sale } from '../api/types'
 import { formatPrice } from '../lib/money'
@@ -9,7 +9,7 @@ import { useSalesStore } from '../stores/sales'
 const store = useSalesStore()
 // A ticking browser clock; combined with the store's serverOffset it becomes
 // backend time, so the countdown does not drift with the viewer's own clock.
-const now = useTimestamp({ interval: 1000 })
+const now = useTimestamp({ scheduler: (cb) => useIntervalFn(cb, 1000) })
 
 const reserveError = ref<string | null>(null)
 
