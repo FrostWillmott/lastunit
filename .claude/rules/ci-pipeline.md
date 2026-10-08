@@ -2,12 +2,12 @@
 
 Apply to any repository with a CI workflow. Rule levels are in `_LEVELS.md`.
 
-Why this module exists: every rule below is written from an incident in this
-repository, where `ci.yml` failed **33 consecutive times without anyone
-noticing**. Two of the three root causes were invisible to every local command,
-and the third hid behind a tool that happened to be on one machine's PATH. CI
-that is never observed is not a gate — it is decoration that costs minutes per
-push. The last rule is the one that makes the other five enforceable.
+Why this module exists: every rule below is written from an incident in a
+project built on this library, where `ci.yml` failed **33 consecutive times
+without anyone noticing**. Two of the three root causes were invisible to every
+local command, and the third hid behind a tool that happened to be on one
+machine's PATH. CI that is never observed is not a gate — it is decoration that
+costs minutes per push. The last rule is the one that makes the other five enforceable.
 
 ## 1. CI calls the project's commands, it does not restate them  [MUST]
 - A job step runs `make check`, `make audit`, `make docker-build` — not a
@@ -25,8 +25,8 @@ push. The last rule is the one that makes the other five enforceable.
 - Before adding a step, expand the target. A job that calls a composite target
   installs the dependencies of **every** part of it, or calls a narrower target
   that matches what it installed.
-- Concretely: `make check` here means `lint format typecheck test frontend-check`.
-  A backend job that sets up only Python and calls `make check` fails on the
+- Concretely: when `make check` means `lint format typecheck test frontend-check`,
+  a backend job that sets up only Python and calls `make check` fails on the
   frontend half — it must either add Node and `npm ci`, or call
   `make lint format typecheck test`.
 - Every tool a target invokes through a runner (`uv run ruff`, `npx tsc`) is a

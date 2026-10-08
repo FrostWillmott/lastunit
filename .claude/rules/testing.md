@@ -13,9 +13,9 @@ Rule levels are defined in `_LEVELS.md`.
 - Test names: `test_{what}_{condition}_{expected_outcome}`.
 - One `conftest.py` per directory level; put shared fixtures at the highest
   level they're needed, not all in the root conftest.
-- The frontend has its own suite (`frontend/src/**/*.test.ts`, see
-  `frontend-vue.md`) with the same naming idea; it runs from `make check` like
-  the backend suite.
+- A frontend, if the project has one, has its own suite
+  (`frontend/src/**/*.test.ts`, see `frontend-vue.md`) with the same naming
+  idea; it runs from `make check` like the backend suite.
 
 ## Assertions  [MUST]
 - Assert specific values, not just "no exception raised" or truthiness.

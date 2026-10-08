@@ -23,8 +23,13 @@ Started from a scaffolding template — Claude Code's `workflow-scaffolding`
 skill plus my own Vite + Vue 3 + TypeScript frontend skeleton, itself scaffolded
 with `create-vite`.
 
-Built with Claude Code: the repository's own conventions live in `AGENTS.md`,
-`.claude/rules/` and `.claude/skills/`, and the agent reads them every session.
+**How this was built.** The concurrency design below is mine; the spec and its
+acceptance criteria come from the task brief. Implementation ran through Claude
+Code, and every change was reviewed by hand before commit. The agent
+configuration lives in [developer-os](https://github.com/FrostWillmott/developer-os):
+`.claude/rules/` here is an exact copy of its `rules-library/`, alongside this
+repo's own `AGENTS.md` and `.claude/skills/`, and the agent reads them every
+session.
 The work was split across models on purpose, in separate sessions — Claude Fable
 5.1 (the plan and the independent reviews), DeepSeek V4 Pro (the implementation,
 stages 0-8) and Claude Opus 5 (CI repair and the browser-driven runtime check) —
