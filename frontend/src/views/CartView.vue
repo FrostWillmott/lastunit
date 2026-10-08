@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useTimestamp } from '@vueuse/core'
+import { useIntervalFn, useTimestamp } from '@vueuse/core'
 import type { CartItem } from '../api/types'
 import { formatPrice } from '../lib/money'
 import { useCartStore } from '../stores/cart'
 
 const store = useCartStore()
-const now = useTimestamp({ interval: 1000 })
+const now = useTimestamp({ scheduler: (cb) => useIntervalFn(cb, 1000) })
 const cardNumber = ref('')
 
 onMounted(async () => {
