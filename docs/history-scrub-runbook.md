@@ -115,6 +115,20 @@ supplied:
 > fetchable. Please delete PRs #1-#28 and garbage-collect the unreachable objects.
 > PRs #29 and later were created after the rewrite and should be kept.
 
+Follow-up (ticket #4833169, 2026-10-09): before deleting anything, Support asked
+for the full SHA of the commit that first introduced the sensitive data. They use
+it to check that no other ref keeps the commit alive, because otherwise it would
+survive garbage collection. We replied with `d723211d55501bd8bf729839f585db4e312020fc`
+("docs: save the first agent session export and log"), the first commit in
+`refs/pull/*/head` that adds a home path under `agent-sessions/`. Its parent
+`efdaea8` adds only the directory's README. Neither commit is reachable from any
+branch or tag. To find the commit again:
+
+```bash
+git fetch origin '+refs/pull/*/head:refs/remotes/origin/pr/*'
+git log --reverse --format='%H %s' --glob='refs/remotes/origin/pr/*' -- agent-sessions/ | head -3
+```
+
 After Support confirms, check that no PR ref reaches the directory any more:
 
 ```bash
