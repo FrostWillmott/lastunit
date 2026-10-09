@@ -137,9 +137,21 @@ repository has two. The end-to-end path is covered instead by that browser run
 against the assembled stack — all nine "Expected behaviour" bullets and the
 two-tab case, driven through the real UI and HTTP, with the observations
 recorded per bullet. The cost is real: the run is manual, so it gates no commit
-and nothing re-runs it after a change. It is current for the code as submitted —
-the only changes since are five comments and one TypeScript type narrowing — but
-any later change needs it repeated by hand, or replaced by an automated layer.
+and nothing re-runs it after a change. It is **no longer current**: since
+submission the running code has changed, and the browser run has not been
+repeated. The changes:
+
+- the payment stub now calls back only to allow-listed hosts (a CodeQL SSRF fix);
+- SQLAlchemy 2.1 brought a one-line change in `app/services/cart.py`;
+- `@vueuse/core` 15 changed the timer behind the storefront countdown and the
+  cart's hold timer (`040694b`), which is the mechanism behind bullet 1 and the
+  visible side of bullet 4;
+- uvicorn, Python/npm patch releases and the nginx, node and python base images
+  were bumped.
+
+The test suite still covers every bullet and CI is green on `main` (2026-10-09).
+The browser half needs another run, by hand or as an automated layer, before
+it can be called current again.
 
 ## State
 
@@ -148,7 +160,8 @@ test. Rows are updated as each stage lands.
 
 All nine bullets were also exercised against the running stack in a browser on
 2026-09-12 — what was driven, what was measured and what was found is in
-[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md).
+[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md). That run
+predates the post-submission changes listed under "Testing".
 
 | #   | Expected behaviour                                                    | Proving test                                                                                                                                                                                                            | Status |
 |-----|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
