@@ -115,6 +115,8 @@ Each maps to a README "State" row; observe the surface named there.
 Check `dc logs backend paystub` for tracebacks at the end. All nine passed over
 HTTP on 2026-09-22 with these commands; the browser half (flows 1, 2, 7 in the
 UI) was not re-driven that day because the Chrome extension was disconnected.
+The full run, browser half included, passed again on 2026-10-09
+(`docs/verification-2026-10-09.md`).
 
 ## Gotchas
 
@@ -126,6 +128,11 @@ UI) was not re-driven that day because the Chrome extension was disconnected.
 - Browser automation may stop delivering synthetic key events mid-run. A form
   that "does not submit on Enter" is the tool, not the app: check for a
   `keydown` listener firing before recording a finding.
+- If the Chrome window is not on screen, every tab reports
+  `visibilityState: "hidden"` and synthetic mouse clicks never reach the page.
+  Press buttons with `button.click()` through `javascript_tool` and say so in
+  the report. Before clicking, wait one render after setting an input: a click
+  in the same task as the `input` event hits a still-disabled button.
 
 ## Report
 

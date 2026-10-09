@@ -34,7 +34,8 @@ table). See `docs/history/plan.md`.
 Since submission (maintenance only, no new features): the paystub callback
 allow-list (CodeQL SSRF fix), an npm-audit allow-list for braces
 GHSA-vfj7-8cjw-p6xm, and upgrades to SQLAlchemy 2.1 and `@vueuse/core` 15.
-The 2026-09-12 browser verification predates those changes; see README "Testing".
+The browser verification was repeated after them on 2026-10-09
+(`docs/verification-2026-10-09.md`): all bullets pass.
 The agent-session exports are scrubbed from history, but PRs #1-#28 still
 reach them until GitHub Support ticket #4833169 is done
 (`docs/history-scrub-runbook.md`).

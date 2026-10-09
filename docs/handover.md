@@ -54,7 +54,9 @@ through Anthropic: `ANTHROPIC_BASE_URL` points the same harness at
 - **State.** ["State"](../README.md#state) — the table "Expected behaviour
   bullet → proving test → status", including what is not proven. Next to it:
   [`docs/verification-2026-09-12.md`](verification-2026-09-12.md) — a run of
-  the assembled app in a browser, separate from the tests, and two independent
+  the assembled app in a browser, separate from the tests (repeated after the
+  post-submission changes in
+  [`docs/verification-2026-10-09.md`](verification-2026-10-09.md)), and two independent
   reviews — [`docs/plan-audit-2026-09-10.md`](plan-audit-2026-09-10.md) and
   [`docs/history/code-audit-2026-09-12.md`](history/code-audit-2026-09-12.md).
 

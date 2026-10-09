@@ -129,7 +129,9 @@ hit the real Postgres.
 
 A green `make check` says the suite passes, not that the assembled app works.
 The latter was checked separately by driving the running stack through a browser:
-[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md).
+[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md), repeated
+after the post-submission changes in
+[`docs/verification-2026-10-09.md`](docs/verification-2026-10-09.md).
 
 There is no `tests/e2e/`, and that is a deliberate deviation.
 `.claude/rules/testing.md` requires three layers in three directories; this
@@ -137,21 +139,12 @@ repository has two. The end-to-end path is covered instead by that browser run
 against the assembled stack — all nine "Expected behaviour" bullets and the
 two-tab case, driven through the real UI and HTTP, with the observations
 recorded per bullet. The cost is real: the run is manual, so it gates no commit
-and nothing re-runs it after a change. It is **no longer current**: since
-submission the running code has changed, and the browser run has not been
-repeated. The changes:
-
-- the payment stub now calls back only to allow-listed hosts (a CodeQL SSRF fix);
-- SQLAlchemy 2.1 brought a one-line change in `app/services/cart.py`;
-- `@vueuse/core` 15 changed the timer behind the storefront countdown and the
-  cart's hold timer (`040694b`), which is the mechanism behind bullet 1 and the
-  visible side of bullet 4;
-- uvicorn, Python/npm patch releases and the nginx, node and python base images
-  were bumped.
-
-The test suite still covers every bullet and CI is green on `main` (2026-10-09).
-The browser half needs another run, by hand or as an automated layer, before
-it can be called current again.
+and nothing re-runs it after a change. After submission the running code
+changed (the paystub callback allow-list, SQLAlchemy 2.1, and `@vueuse/core` 15,
+which drives the storefront countdown and the cart's hold timer), so the run was
+repeated on 2026-10-09 against `85d0717`: all bullets passed. It is current for
+that commit; the next change to `app/`, `paystub/` or `frontend/` needs it
+repeated, by hand (`.claude/skills/verify/`) or by an automated layer.
 
 ## State
 
@@ -159,9 +152,10 @@ Every "Expected behaviour" bullet in `docs/acceptance.md` maps to one named
 test. Rows are updated as each stage lands.
 
 All nine bullets were also exercised against the running stack in a browser on
-2026-09-12 — what was driven, what was measured and what was found is in
-[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md). That run
-predates the post-submission changes listed under "Testing".
+2026-09-12 and again on 2026-10-09, after the post-submission changes — what was
+driven, what was measured and what was found is in
+[`docs/verification-2026-09-12.md`](docs/verification-2026-09-12.md) and
+[`docs/verification-2026-10-09.md`](docs/verification-2026-10-09.md).
 
 | #   | Expected behaviour                                                    | Proving test                                                                                                                                                                                                            | Status |
 |-----|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------|
